@@ -45,7 +45,8 @@ destroy_apps(){
 destroy_infra(){
     for region in $EAST_REGION $WEST_REGION
     do
-        if [  "$(getState "build.$region.infra")" = true  ]; then
+        if [ "$(getState "build.$region.infra")" = true ] || [ "$(eksctl get cluster -o json --region="$region" | jq -r '.[][].name' | grep -c "$CLUSTER_NAME"
+1)" -eq "1"  ]; then
             setAWSRoleSession
             eksctl delete cluster --region "$region" --name "$CLUSTER_NAME"
             for s in $(aws cloudformation list-stacks --region "$WEST_REGION" | jq -r '.[][].StackName' | grep -F "$DEMO_NAME")

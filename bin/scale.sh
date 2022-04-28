@@ -10,6 +10,7 @@ do
     exitingNodes=$(aws eks describe-nodegroup --cluster="$CLUSTER_NAME" --nodegroup-name=ng-linux --region="$region" | jq -r .nodegroup.scalingConfig.desiredSize)
     #Scale only if the MC_COUNT has changed
     if [ "$exitingNodes" -ne "$SCALE" ]; then
+        INFO "Scaling from $exitingNodes to $SCALE"
         export AWS_DEFAULT_REGION=$region && use-context
         if [ "$SCALE" -eq "0" ]
         then
@@ -36,6 +37,6 @@ do
             done
         fi  
     else
-        INFO "Existing Nodes ($exitingNodes) are the same value as the Scaling ($SCALE)"
+        INFO "Existing Nodes ($exitingNodes) are the same number as the input Scale ($SCALE)"
     fi
 done

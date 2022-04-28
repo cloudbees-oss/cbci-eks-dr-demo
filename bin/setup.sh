@@ -97,6 +97,7 @@ INFO "-------------------------------"
 INFO "Starting Post Building Phase"
 INFO "-------------------------------"
 setBackUpScheduller
+pass=$(kubectl get secret login -o jsonpath='{.data.password}' | base64 --decode) && setState "cjoc.pass" "$pass"
 INFO "Login for the first time and generate a Trial License"
 INFO "Log in as admin using password $pass at http://$ROUTE_53_DOMAIN/cjoc/ and get a trial license"
 until curl -f "http://$ROUTE_53_DOMAIN/cjoc/whoAmI/api/json"
@@ -104,7 +105,6 @@ do
     sleep 1m
 done
 INFO "Preparing Jenkins Token for Remote authentication"
-pass=$(kubectl get secret login -o jsonpath='{.data.password}' | base64 --decode) && setState "cjoc.pass" "$pass"
 #https://github.com/jenkinsci/configuration-as-code-plugin/issues/1830 hard to make a crumb
 crumb=$(curl -s -u admin:$pass -c /tmp/cookies http://$ROUTE_53_DOMAIN/cjoc/crumbIssuer/api/xml'?xpath=concat(//crumbRequestField,":",//crumb)')
 token=$(curl -s -u admin:$pass -H $crumb -d newTokenName=general -b /tmp/cookies http://$ROUTE_53_DOMAIN/cjoc/user/admin/descriptorByName/jenkins.security.ApiTokenProperty/generateNewToken | jq -r .data.tokenValue)
