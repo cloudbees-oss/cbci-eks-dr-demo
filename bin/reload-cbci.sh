@@ -8,7 +8,10 @@ INFO "Prerequisite: it might require to scale the cluster at first to hold the w
 exitingMc=$(helm get values casc | grep mcCount | cut -d":" -f 2 | xargs)
 #Deploy only if the MC_COUNT has changed
 if [ "$exitingMc" -ne "$MC_COUNT" ]; then
+    INFO "Updating the number of Controller from $exitingMc to $MC_COUNT"
     deployCbCi
+else
+    INFO "Existing Managed Controller ($exitingMc) are the same number as the input Mc Count ($MC_COUNT)"
 fi
 
 kubectl delete pod cjoc-0
