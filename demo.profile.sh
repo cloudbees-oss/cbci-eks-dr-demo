@@ -23,21 +23,6 @@ export DEBUG=${DEBUG:-false}
 ## Functions
 #######################
 
-INFO(){
-    local function_name="${FUNCNAME[1]}"
-    local msg="$1"
-    timeAndDate=$(date)
-    echo "[$timeAndDate] [INFO] [${0}] [$function_name] $msg"
-}
-
-ERROR(){
-    local function_name="${FUNCNAME[1]}"
-    local msg="$1"
-    timeAndDate=$(date)
-    echo "[$timeAndDate] [ERROR] [${0}] [$function_name] $msg"
-    exit 1
-}
-
 setState(){
     yq w -i "$ROOT/demo.state.yaml" "$1" "$2"
 }
@@ -48,11 +33,34 @@ getState(){
     echo "$value"
 }
 
+#https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+#https://aws.amazon.com/premiumsupport/knowledge-center/iam-assume-role-cli/
+#Required for short-lived token Rol assumptions
+setAWSRoleSession(){
+    if [ -n "$AWS_ASSUME_ROLE" ]; then
+        local arn="$(aws iam list-roles --query "Roles[?RoleName == '$AWS_ASSUME_ROLE'].[RoleName, Arn]" | jq -r '.[][]' | grep arn)"
+        local assume_creds=$(aws sts assume-role --role-arn "$arn" --role-session-name AWSCLI-Session)
+        export AWS_ACCESS_KEY_ID="$(echo "$assume_creds" | jq -r '.Credentials.AccessKeyId')"
+        export AWS_SECRET_ACCESS_KEY="$(echo "$assume_creds" | jq -r '.Credentials.SecretAccessKey')"
+        export AWS_SESSION_TOKEN="$(echo "$assume_creds" | jq -r '.Credentials.SessionToken')"
+        setState aws.expiration "$(echo "$assume_creds" | jq -r '.Credentials.Expiration')"
+    else
+        setState aws.expiration null
+    fi
+}
+
 getLocals(){
     local demo
     local suffix
+    ## Structure
+    export ROOT="/root/demo-scm"
+    export INFRA_DIR="$ROOT/infra"
+    export HELM_DIR="$ROOT/helm"
+    export BIN="$ROOT/bin"
+    ## CloudBees CI version: 2.332.2.6
+    export CBCI_VERSION=3.42.6+c9672cd0453e
     if [ ! -f "$ROOT/demo.state.yaml" ]; then
-        cat <<EOF > $ROOT/demo.state.yaml
+        cat <<EOF > "$ROOT/demo.state.yaml"
 ---
 aws:
     # UTC | null = Rol assumption not required
@@ -88,34 +96,13 @@ EOF
         demo="$(getState demo.name)"
         suffix="$(getState demo.suffix)"
     fi
-    account=$(aws sts get-caller-identity | jq -r .Account)
-    export ACCOUNT="$account"
     export DEMO_NAME="$demo"
     export SUFFIX="$suffix"
     export CLUSTER_NAME="$demo-$suffix"
-    ## CloudBees CI version: 2.332.2.6
-    export CBCI_VERSION=3.42.6+c9672cd0453e
-    ## Structure
-    export ROOT="/root/demo-scm"
-    export INFRA_DIR="$ROOT/infra"
-    export HELM_DIR="$ROOT/helm"
-    export BIN="$ROOT/bin"
-}
-
-#https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
-#https://aws.amazon.com/premiumsupport/knowledge-center/iam-assume-role-cli/
-#Required for short-lived token Rol assumptions
-setAWSRoleSession(){
-    if [ -n "$AWS_ASSUME_ROLE" ]; then
-        local arn="$(aws iam list-roles --query "Roles[?RoleName == '$AWS_ASSUME_ROLE'].[RoleName, Arn]" | jq -r '.[][]' | grep arn)"
-        local assume_creds=$(aws sts assume-role --role-arn "$arn" --role-session-name AWSCLI-Session)
-        export AWS_ACCESS_KEY_ID="$(echo "$assume_creds" | jq -r '.Credentials.AccessKeyId')"
-        export AWS_SECRET_ACCESS_KEY="$(echo "$assume_creds" | jq -r '.Credentials.SecretAccessKey')"
-        export AWS_SESSION_TOKEN="$(echo "$assume_creds" | jq -r '.Credentials.SessionToken')"
-        setState aws.expiration "$(echo "$assume_creds" | jq -r '.Credentials.Expiration')"
-    else
-        setState aws.expiration null
-    fi
+    ## AWS
+    account=$(aws sts get-caller-identity | jq -r .Account)
+    export ACCOUNT="$account"
+    setAWSRoleSession
 }
 
 in-east() {
@@ -141,6 +128,14 @@ use-context() {
     fi
 }
 
+deployCbCi(){
+    cd "$HELM_DIR" || ERROR "Directory $HELM_DIR is missing"
+    sed "s/@ROUTE_53_DOMAIN@/$ROUTE_53_DOMAIN/g" < "cbci.yaml" > "/tmp/cbci-temp.yaml"
+    sed "s/@ROUTE_53_DOMAIN@/$ROUTE_53_DOMAIN/g; s/@CB_CI_VERSION@/$CBCI_VERSION/g; s/@MC_COUNT@/$MC_COUNT/g" < "hf.east.yaml" > "/tmp/hf.east-temp.yaml"
+    helmfile --file /tmp/hf.east-temp.yaml apply
+    INFO "Watch cjoc progress live: kubectl logs -f cjoc-0 -n cbci"
+}
+
 setDebugLevel(){
     if [ "$DEBUG" = true ]; then
         shopt -s expand_aliases
@@ -152,12 +147,19 @@ setDebugLevel(){
     fi
 }
 
-deployCbCi(){
-    cd "$HELM_DIR" || ERROR "Directory $HELM_DIR is missing"
-    sed "s/@ROUTE_53_DOMAIN@/$ROUTE_53_DOMAIN/g" < "cbci.yaml" > "/tmp/cbci-temp.yaml"
-    sed "s/@ROUTE_53_DOMAIN@/$ROUTE_53_DOMAIN/g; s/@CB_CI_VERSION@/$CBCI_VERSION/g; s/@MC_COUNT@/$MC_COUNT/g" < "hf.east.yaml" > "/tmp/hf.east-temp.yaml"
-    helmfile --file /tmp/hf.east-temp.yaml apply
-    INFO "Watch cjoc progress live: kubectl logs -f cjoc-0 -n cbci"
+INFO(){
+    local function_name="${FUNCNAME[1]}"
+    local msg="$1"
+    timeAndDate=$(date)
+    echo "[$timeAndDate] [INFO] [${0}] [$function_name] $msg"
+}
+
+ERROR(){
+    local function_name="${FUNCNAME[1]}"
+    local msg="$1"
+    timeAndDate=$(date)
+    echo "[$timeAndDate] [ERROR] [${0}] [$function_name] $msg"
+    exit 1
 }
 
 #######################
@@ -165,4 +167,3 @@ deployCbCi(){
 #######################
 
 getLocals
-setAWSRoleSession
