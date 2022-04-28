@@ -15,7 +15,7 @@ export WEST_REGION=us-west-1
 ## Number of ManagedMaster. Start with a small number. Optionally, you can increase it
 export MC_COUNT=5
 ## Number of Nodes to Scale | Check max and min from infra/cluster.yaml
-export SCALE=20
+export SCALE=15
 ## Debugging
 export DEBUG=${DEBUG:-false}
 
@@ -100,9 +100,10 @@ EOF
     export SUFFIX="$suffix"
     export CLUSTER_NAME="$demo-$suffix"
     ## AWS
+    setAWSRoleSession
+    sleep 1
     account=$(aws sts get-caller-identity | jq -r .Account)
     export ACCOUNT="$account"
-    setAWSRoleSession
 }
 
 in-east() {
