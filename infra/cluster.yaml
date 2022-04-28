@@ -17,7 +17,9 @@ iam:
     - arn:aws:iam::@ACCOUNT@:policy/@NAME@-velero
 managedNodeGroups:
 - name: ng-linux
-  instanceType: t3.large
+  instanceSelector:
+    vCPUs: 2
+    memory: 8GiB
   spot: true
   minSize: 0
   maxSize: 50
