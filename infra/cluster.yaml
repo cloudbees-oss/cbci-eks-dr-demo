@@ -1,0 +1,30 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: @NAME@-@SUFFIX@
+  region: @REGION@
+  version: "1.21"
+availabilityZones:
+- @ZONE1@
+- @ZONE2@
+iam:
+  withOIDC: true
+  serviceAccounts:
+  - metadata:
+      name: velero
+      namespace: velero
+    attachPolicyARNs:
+    - arn:aws:iam::@ACCOUNT@:policy/@NAME@-velero
+managedNodeGroups:
+- name: ng-linux
+  instanceType: t3.large
+  spot: true
+  minSize: 0
+  maxSize: 50
+  desiredCapacity: 5
+  availabilityZones:
+  # The cluster itself could run in all AZs (with WaitForFirstConsumer) but PR-90 does not yet support restore to multi-AZ clusters:
+  - @ZONE1@
+  iam:
+    withAddonPolicies:
+      ebs: true

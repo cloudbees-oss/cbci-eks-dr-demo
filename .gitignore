@@ -1,0 +1,6 @@
+demo.state.yaml
+logs
+kubeconfig_*
+.bash_history
+agent/v_kube
+agent/v_tmp

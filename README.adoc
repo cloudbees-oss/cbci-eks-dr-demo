@@ -1,0 +1,427 @@
+# CloudBees CI cross-region disaster recovery on Elastic Kubernetes Service using Elastic Block Store
+
+CloudBees CI customers are always interested in backup and restore,
+but also inquire about the possibility of link:https://en.wikipedia.org/wiki/Disaster_recovery[disaster recovery (DR)].
+DR is essentially restoring from a backup after an unplanned loss of the original installation,
+including across geographical regions.
+
+AWS occasionally suffers serious outages that affect an entire region.
+For more information, refer to link:https://aws.amazon.com/premiumsupport/technology/pes/[AWS Post-Event Summaries],
+link:https://en.wikipedia.org/wiki/Timeline_of_Amazon_Web_Services#Amazon_Web_Services_outages[Amazon Web Services outages],
+and link:https://awsmaniac.com/aws-outages/[The Complete History of AWS Outages].
+To assure minimal disruption to development teams that are using CloudBees CI,
+it is desirable to have a plan to restore an entire installation to a fallback region.
+
+NOTE: For CloudBees CI running on Amazon Web Services (AWS),
+some customers may find it sufficient to use multiple availability zones (AZs) within one region.
+This will protect against many common outages, but may not protect against the most serious outages.
+One way to do this is to use Elastic File System (EFS).
+
+This document focuses on one important scenario:
+CloudBees CI running not only on AWS, but specifically in Elastic Kubernetes Service (EKS),
+using Elastic Block Store (EBS) for `$JENKINS_HOME` volumes,
+and a domain managed by Route 53.
+It demonstrates use of the popular OSS link:https://velero.io/[Velero] project as a backup system,
+using Simple Storage Service (S3) for metadata, and EBS snapshots for the main data.
+
+Using Kubernetes allows us to focus more on the behavior of the application and less on the infrastructure.
+While it is certainly possible to fail over across regions when running CloudBees CI on traditional platforms,
+more customized scripting is required to properly restore all the services and their connections.
+When using a tool such as Velero on Kubernetes, not only are the data volumes backed up and restored,
+but all of the metadata is backed up and restored as well.
+This means that a few straightforward and portable commands allow major operations to run.
+
+Of course, customers are free to use other open-source or commercial backup tools,
+on Kubernetes or otherwise,
+which are able to synchronize data across regions.
+For example, link:https://cloud.google.com/gcp[Google Cloud (GCP)]
+is planning a link:https://cloud.google.com/blog/products/storage-data-transfer/google-cloud-launches-backups-for-gke[native integrated backup system]
+for link:https://cloud.google.com/kubernetes-engine[Google Kubernetes Engine (GKE)].
+
+== DR requirements for CloudBees CI
+
+Broadly speaking, there are several requirements for cross-region DR of CloudBees CI:
+
+* Filesystem data, such as `$JENKINS_HOME` volumes, must have been copied to the fallback region _before_ the disaster.
+  After the disaster has started, it may be too late to recover data.
+
+* Metadata, such as a list of processes, network configuration, or anything not in `$JENKINS_HOME`,
+  must also have been replicated in advance.
+  The primary region should be assumed to be totally inaccessible.
+
+* There must be a simple, mostly automated way for an administrator to trigger the failover.
+  (It is not required that a failover occur automatically when a problem is detected in the primary region.)
+
+* Once restored to the fallback region, CloudBees CI must start without any serious errors from half-written files or similar.
+
+* The failover procedure must include switching the DNS entry for CloudBees CI to the new physical location,
+  so any browser bookmarks, webhooks, or similar, continue to function as they did before the restore.
+
+* The recovery time objective (RTO) is determined by the administrator, but typically on the order of an hour or less.
+  This means the failover procedure needs to complete within minutes,
+  and CloudBees CI should be up and running and ready to perform builds soon afterward.
+
+* The recovery point objective (RPO) may be longer, on the order of a day, but may also be comparable to the RTO.
+  Therefore, only a few very recent builds or configuration changes may be lost.
+
+* Since CloudBees CI does not support full high availability (HA),
+  there will be a brief period where the UI is inaccessible.
+  Any incoming webhooks will also be lost,
+  but at least hooks coming from an SCM should be treated as an optimization;
+  systems listening to hooks, such as Multibranch projects, should be configured to occasionally poll as well.
+
+* The administrator should be shown a clear indication that a restored system is actually restored from backup,
+  and given an opportunity to review any builds that may have been interrupted by the failover.
+  It is not expected that such builds resume or restart automatically,
+  nor is any attempt made to preserve the contents of workspaces or live process states from agents.
+
+NOTE: CloudBees CI offers link:https://docs.cloudbees.com/docs/cloudbees-ci/latest/casc-oc/[Configuration as Code (CasC)] functionality.
+An installation that has been completely converted to CasC may not need traditional backups to achieve DR;
+a restore operation could consist simply of running a CasC bootstrap script in a fresh cluster.
+This is only an option for a customer who has translated every significant system setting and job configuration to CasC, however.
+Even then it may be desirable to perform a filesystem-level restore from backup for DR purposes,
+in order to preserve transient data such as build history.
+
+== CloudBees CI product support for DR
+
+CloudBees CI is compatible with DR, including across regions.
+From a technical standpoint, the following major components are involved:
+
+* Jenkins core and plugins generally keep both configuration and runtime state in a filesystem hierarchy.
+  Therefore, simply copying the `$JENKINS_HOME` volume to a new location is sufficient for backup purposes.
+  Wherever practical, metadata files are written atomically,
+  and every effort is made to gracefully tolerate missing, truncated, or corrupted files,
+  with a few exceptions for security reasons.
+
+* Pipeline plugins are designed to allow builds to run across controller restarts.
+  The same mechanisms work in backup and restore or DR scenarios
+  for steps such as `input` which pause without the involvement of an agent.
+  When a build is actively running on an agent inside a `node` block
+  and the agent is destroyed or otherwise lost, due to a regional outage or more commonplace problems,
+  it is not currently possible for the build to retry that stage on a fresh agent.
+  However, the situation can at least be recorded in the build log and metadata,
+  and the build can be restarted from the beginning,
+  from a `checkpoint` using Scripted syntax,
+  or from the start of the failed stage using Declarative syntax.
+
+* CloudBees CI includes link:https://docs.cloudbees.com/docs/admin-resources/latest/pipelines/controlling-builds#aborted-builds[proprietary functionality] to detect a restore scenario,
+  displaying a specialized notification to the administrator,
+  and enumerating builds potentially or definitely affected.
+
+Some functional improvements are available in January 2022
+in the link:https://docs.cloudbees.com/docs/release-notes/latest/cloudbees-ci/modern-cloud-platforms/2.319.2.5#_feature_enhancements[CloudBees CI 2.319.2.5 release].
+Other improvements and reliability fixes are planned for subsequent releases or are under consideration.
+
+CloudBees CI on Kubernetes additionally benefits from the robust container management of the Kubernetes control plane.
+Aside from the operations center and managed controllers running as ``StatefulSet``s,
+controllers use the Jenkins Kubernetes plugin to schedule builds on disposable agent pods,
+eliminating the need to explicitly manage worker infrastructure.
+Provided that the cluster in the fallback region has sufficient capacity,
+the restored installation will be ready to run new builds as soon as managed controllers start back up.
+A backup does not need to include ``Pod``s,
+as the operations center or managed controller pods are recreated automatically.
+Agent pods cannot be restored from backup.
+
+link:https://docs.cloudbees.com/docs/cloudbees-ci/latest/cloud-admin-guide/managing-masters#_hibernation_in_managed_masters[Hibernation of managed controllers] is also supported for DR purposes.
+If only a portion of the defined managed controllers were actually running at the time of the last backup,
+the same is true after the restore.
+SCM webhooks delivered to the restored cluster can “wake up” hibernated managed controllers and trigger builds as usual.
+
+== Using Velero on AWS
+
+Velero includes a standard plugin for AWS,
+specifically based on S3 metadata storage and EBS volume snapshots.
+Unfortunately, this plugin does not currently offer cross-region support.
+While Velero on GCP can offer this functionality due to native cross-region Container Storage Interface (CSI) snapshots,
+EBS snapshots are region-specific and must be explicitly copied.
+
+As an example implementation for this platform,
+CloudBees has developed a link:https://github.com/vmware-tanzu/velero-plugin-for-aws/pull/90[custom patch to this Velero plugin]
+which implements cross-region EBS snapshot replication.
+To keep RPO low,
+CloudBees also developed a link:https://github.com/vmware-tanzu/velero/pull/4242[custom patch to Velero core]
+to parallelize volume snapshot operations.
+Backups can be restored to either the primary or failover region
+and the appropriate snapshots are selected automatically at restore time.
+
+IMPORTANT: These patches should be considered experimental and unsupported.
+They are not accepted upstream by the Velero project in their current form.
+General cross-region support for Velero is under discussion,
+but is not expected before mid-2022 at the earliest,
+as it may be based on a new link:https://github.com/vmware-tanzu/astrolabe[fundamental infrastructure].
+
+There are a few notable limitations in the current Velero plugin patch:
+
+* It only supports volumes in a single AZ,
+  even though EKS can be configured to run stateful workloads using EBS across several AZs in the region.
+  However, stateless pods such as agents could be run in a node pool in another AZ.
+* It only supports one failover region, and does not implement metadata replication.
+  Metadata is sent to S3 in the failover region only,
+  so a restore from backup in the primary region would not work if the failover region happened to be down.
+
+Also note that EFS has a very different snapshot and replication architecture
+and is not covered by this plugin (patched or otherwise).
+
+In combination, these patches have been tested to the scale of around 100 active managed controllers.
+Hibernated managed controllers have little impact on backup time
+since EBS volume snapshots, as well as cross-region snapshot replication, are incremental.
+With the backup completing in just a few minutes under plausible load conditions,
+a low RPO based on backups scheduled every 15 minutes can be achieved.
+An RTO in the same vicinity is also possible since reconstruction of Kubernetes metadata is fairly quick.
+Volumes created from EBS snapshots are loaded lazily,
+so the operations center and managed controller startup time is somewhat slower than usual,
+but still tolerable.
+
+Actual results vary depending on numerous factors,
+with backup performance mainly depending on the number of modified 512 KiB blocks.
+Managed controllers which can modify numerous or large files,
+for example by running many concurrent builds or using large log files, 
+impose the most load.
+CloudBees recommends that you configure link:https://docs.cloudbees.com/docs/cloudbees-ci/latest/cloud-reference-architecture/ra-for-aws/#ams3[S3-based artifact storage]
+rather than storing build artifacts in `$JENKINS_HOME`.
+
+DR-related AWS billing costs vary as well,
+so customers are advised to monitor daily, weekly, or monthly cost usage graphs per “service”.
+It is expected that cross-region replication of EBS snapshots
+should not add significantly to the monthly bill compared to compute (EC2) costs.
+Holding EBS snapshots, even within a region, incurs a noticeable cost, but still likely much less than compute costs.
+However, this would be necessary for routine backup purposes anyway.
+Creating an EKS cluster from scratch is time-consuming, at approximately 27 minutes, which precludes short RTOs.
+In addition, this can be error-prone.
+Therefore, it is advisable to keep an empty cluster—with only a control plane and the Velero service—active in the failover region, for $5 per day.
+Scaling up a node pool is surprisingly much faster and seemingly reliable,
+so it is reasonable to do this on demand as part of the recovery process.
+This saves costs at the expense of a few minutes added to RTO.
+It is also possible to use link:https://aws.amazon.com/ec2/spot/[Amazon EC2 Spot Instances] to save considerably on compute costs;
+link:https://docs.aws.amazon.com/eks/latest/userguide/fargate.html[AWS Fargate] has not yet been evaluated in the context of DR.
+
+CloudBees has also developed a link:https://github.com/cloudbees-oss/inject-metadata-velero-plugin[simple Velero plugin] that is not specific to AWS.
+It records the identifier of the current restore in every `StatefulSet` as an environment variable,
+so that managed controllers using the Restart Aborted Builds plugin
+are alerted to the fact that a restore from a backup has occurred.
+
+== Demonstration environment details
+
+The associated folder includes a complete, self-contained environment
+to see CloudBees CI running in EKS in a primary region (`us-east-1`),
+backed up every 15 minutes using Velero with EBS snapshots replicated to the fallback region (`us-west-1`),
+with the ability to restore to either the same cluster or a cluster in the fallback region on demand.
+
+Scripts are included to create both clusters and install all required software:
+CloudBees CI, Velero, and system tools, such as an ingress controller.
+The setup scripts also create an S3 bucket for metadata
+and configure an IAM policy suitable for Velero.
+
+All you need is authentication to an AWS account with sufficient permissions to create such resources.
+You also need a domain name for serving HTTP traffic to CloudBees CI that has been registered in a Route 53 zone;
+an included script configures Route 53 to point to either the east or west region.
+
+Along with the Helm chart for CloudBees CI,
+link:https://docs.cloudbees.com/docs/cloudbees-ci/latest/casc-oc/[CloudBees CasC for the operations center]
+is used to define most aspects of the operations center, including a randomized administrator password.
+The only manual setup required is to accept a trial license for CloudBees CI when prompted.
+A set of managed controllers (by default 5, but this can be overridden to test larger scales) is pre-created,
+along with example Pipeline jobs on each managed controller, demonstrating behavior of various steps and simulated workloads.
+Managed controllers hibernate automatically after a period of inactivity.
+
+== Preparation 
+
+=== Demo Agent
+
+The demonstration agent contains all the required tools and configuration for this demo.
+
+The script `agent/run.sh` build and run the agent for you.   
+
+* The container will be binding the source code of the demo in `/root/demo-scm` to be able to run the commands listed under _Operation script reference_ section. On the other hand, it would be using the `$HOME/.aws` configuration from the Docker host.
+* Additionally, a couple of docker volumens will be attached, one for saving the kubectl config configuration (`v_kube`) and another with all temporal files created during the demo execution (`v_tmp`).
+
+=== Demo Configuration 
+
+The configuration of the demo is centralized in the file `demo.profile.sh` 
+
+Configure your own AWS environment by updating the required parameters `AWS_PROFILE`, `ROUTE_53_DOMAIN`, `ROUTE_53_ZONE_ID` in the `demo.profile.sh` file. 
+
+* `AWS_PROFILE` requires to be included into `$HOME/.aws/config`
+* `ROUTE_53_ZONE_ID` requires an existing Hosted Zone. 
+* `ROUTE_53_DOMAIN` could be a new or exiting domain but it required to be managed by `ROUTE_53_ZONE_ID` (above)
+
+IMPORTANT: If you want to run any command outside provided scripts, run first `source /root/demo-scm/demo.profile.sh` to load the environments. Note that `getLocals` load parametres required by the demo scripts.
+
+=== Demo State 
+
+The execution commands (mainly `setup.sh` and `teardown.sh`) depends on the `demo.state.yaml` to make the scripts idempotent.
+
+=== Assume Role Token Expiration (optional)
+
+For those organization which uses link:https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html[assume roles] credentials for AWS, like CloudBees, the function `setAWSRoleSession` refresh the token when sourcing  `demo.profile.sh`. This fuction is also called during the most time-consuming processes to avoid the AWS rol token expiration.
+
+It is managed by the variable `AWS_ASSUME_ROLE`. Set it to null in case you work with user credentials instead of rol crendentials.
+
+== Cross-region disaster recovery simulation
+
+All the demo commands are orchestrated by the parent script `run.sh` to centralize logs and timing. 
+
+[source,bash]
+----
+$> bash run.sh
+Select one of the folloing option and press [ENTER]:
+
+build [B]
+reload-cbci [L]
+scale [S]
+restore [R]
+destroy [D]
+----
+
+=== Building [B]
+
+The option **B** will build up the Demo Environment. 
+
+A random environment identifier is generated and saved in `demo.state.yaml`, to ensure all resource names are unique. The name is also composed by `MY_DEMO_ID` just to help us to quickly identify who was running the demo without using tags ;)
+
+During the setup command a link:https://velero.io/docs/v1.8/how-velero-works/#scheduled-backups[sheduled backup] is set up every 15 minutes. 
+
+When prompted after approximately an hour to build the infra and deploy the apps in the East and West regions, you need to sign in to the operations center as the `admin` user and get a trial license when you see the following in the console logs:
+
+[source,bash]
+----
+...
+Log in as admin using password eXamPlePaSS at http://ci.dr-example.com/cjoc/ and get a trial license.
+...
+----
+
+The values for authentication are saved in `demo.state.yaml` too.
+
+=== Scale [B] (Optional)
+
+The nodegroup `ng-linux` will be scaled in both clusters (East and West) according to the value of the variable `SCALE` in `demo.profile.sh`.
+
+[source,bash]
+----
+$> bash run.sh
+Select one of the folloing option and press [ENTER]:
+...
+scale [S]
+...
+s
+----
+
+=== Load [L]
+
+In case the number of nodes were scaled up/down, the number of Managed Master can be adjusted accordingly by the variable `MC_COUNT` in `demo.profile.sh`.
+
+Once the building/scaling of the demo finishes `OK`, move the context to the Main Region (`east`) and hit `run` with option **L** to ensure all configured managed controllers are awake and trigger builds for each of their jobs. 
+
+[source,bash]
+----
+$> source demo.profile.sh
+...
+$> in-east
+...
+$> bash run.sh
+Select one of the folloing option and press [ENTER]:
+...
+reload-cbci [L]
+...
+l
+----
+
+=== Check backup status
+
+The following command is issued to verify if the status of the velero backups:
+
+----
+$> velero get backups
+----
+
+NOTE: Backups must be present on both regions.
+
+The backups are setup to TTL of 1 hour, then they link:https://velero.io/docs/v1.8/how-velero-works/#set-a-backup-to-expire[expire].
+
+=== Restore [R]
+
+Once some of the backups have been completed after fininshing with the Load of the Main Region, move the context to the Main Region (`west`) and issue command `run` with the option **R**.
+
+[source,bash]
+----
+$> source demo.profile.sh
+...
+$> in-west
+...
+$> bash run.sh
+Select one of the folloing option and press [ENTER]:
+...
+restore [R]
+...
+r
+----
+
+After a few minutes, CloudBees CI should be back up and running in the fallback region.
+
+Visit some managed controllers. You should see an administrative monitor from the Restart Aborted Builds plugin.
+
+=== Destroying the Demo [D]
+
+When you are finished, issue the following command `run` with the option **D** to clean up all demonstration resources from your account.
+
+[source,bash]
+----
+$> bash run.sh
+Select one of the folloing option and press [ENTER]:
+...
+destroy [D]
+...
+d
+----
+
+== Operation script reference
+
+Script to configure the shell (`source xxx.sh`):
+
+* `demo.profile.sh`: Load basic environment variables and functions.
+
+State file
+
+* `demo.state.yaml`: Save state informacion used by demo commands (mainly for `setup.sh` and `teardown.sh`)
+
+Primary scripts to run via `run.sh`
+
+* `setup.sh` (`run.sh [B]`):  Set up the two clusters in two regions and associated resources. It calls to `switch-dns.sh` to create/switch a DNS (Route 53) pointing to an ELB endpoint of the target cluster. 
+* `reload-cbci.sh` (`run.sh [L]`): Refresh the operations center from Helm, and apply CasC to create/update managed controllers to the selected region. Finally, it calls to  `wake-and-build.sh` to simulate CI trigger events for jobs.
+* `scale.sh` (`run.sh [S]`): Change the size of the node pool in both regions.
+* `restore.sh` (`run.sh [R]`): Restore a backup in the currently selected region (initiate DR).It calls to `switch-dns.sh` to update DNS (Route 53) to a different ELB endpoint. 
+* `teardown.sh` (`run.sh [D]`): Reverse of `setup.sh`. Deletes clusters, S3 bucket, IAM policy, and EBS snapshots from Velero.
+
+Scripts called by primary scripts (above)
+
+* `switch-dns.sh`: Switch Route 53 DNS record to the currently selected regional cluster.
+* `wake-and-build.sh`: Trigger a build on a managed controller, waking it from hibernation as needed.
+* `cli.sh`: Run a CLI command on the operations center or a managed controller. 
+
+Other scripts to run (`bash xxx.sh`):
+
+* `back-up.sh`: Initiate a link:https://velero.io/docs/v1.8/how-velero-works/#on-demand-backups[on demand backup], if you do not wish to use a scheduled backup.
+
+=== Troubleshooting
+
+* Set `export DEBUG=true`.
+* Logs for Primary scripts are stored under `logs` folder.
+
+==== Agent Docker run
+
+[source,bash]
+----
+error checking context: 'no permission to read from '/data/code/github/carlosrodlop/cbci-eks-dr-demo/agent/v_kube/cache/discovery/8662CFAF47F7D6D675E3CF921410A579.sk1.us_east_1.eks.amazonaws.com/admissionregistration.k8s.io/v1/serverresources.json''
+----
+
+Inside the agent folder run `sudo chown -R $(whoami) v_kube && sudo chown -R $(whoami) v_tmp`.
+
+==== Credentials, Token expiration
+
+[source,bash]
+----
+helm.go:81: [debug] the server has asked for the client to provide credentials
+Kubernetes cluster unreachable
+----
+
+Please run `source demo demo.profile.sh` the token as expired or is not available for that session.

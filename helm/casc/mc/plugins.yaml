@@ -1,0 +1,21 @@
+plugins:
+- id: cloudbees-aborted-builds
+- id: cloudbees-casc-client
+- id: cloudbees-casc-items-controller
+- id: cloudbees-groovy-view
+- id: configuration-as-code
+- id: junit
+- id: kube-agent-management
+- id: managed-master-hibernation
+- id: mock-load-builder
+- id: pipeline-build-step
+- id: pipeline-input-step
+- id: pipeline-stage-step
+- id: pipeline-stage-view
+- id: timestamper
+- id: workflow-basic-steps
+- id: workflow-cps
+- id: workflow-cps-checkpoint
+- id: workflow-durable-task-step
+- id: workflow-job
+- id: workflow-multibranch

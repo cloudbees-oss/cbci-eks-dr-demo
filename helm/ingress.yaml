@@ -1,0 +1,13 @@
+controller:
+  ingressClass: nginx
+  nodeSelector:
+    kubernetes.io/os: linux
+  service:
+    externalTrafficPolicy: Local
+  admissionWebhooks:
+    patch:
+      nodeSelector:
+        kubernetes.io/os: linux
+defaultBackend:
+    nodeSelector:
+      kubernetes.io/os: linux
