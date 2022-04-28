@@ -37,7 +37,11 @@ destroy_infra(){
     for region in $EAST_REGION $WEST_REGION
     do
         setAWSRoleSession
-        eksctl delete cluster --region "$region" --name "$CLUSTER_NAME"
+        if eksctl get cluster --region "$region" --name "$CLUSTER_NAME" 2> /dev/null; then
+            eksctl delete cluster --region "$region" --name "$CLUSTER_NAME"
+        else
+            INFO "Could not find cluster $CLUSTER_NAME in region $region"
+        fi
         for s in $(aws cloudformation list-stacks --region "$WEST_REGION" | jq -r '.[][].StackName' | grep -F "$DEMO_NAME")
         do
             aws cloudformation delete-stack --region "$WEST_REGION" --stack-name "$s"
