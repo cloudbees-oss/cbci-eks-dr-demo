@@ -97,7 +97,8 @@ INFO "-------------------------------"
 INFO "Starting Post Building Phase"
 INFO "-------------------------------"
 setBackUpScheduller
-pass=$(kubectl get secret login -o jsonpath='{.data.password}' | base64 --decode) && setState "cjoc.pass" "$pass"
+pass=$(kubectl get secret login -o jsonpath='{.data.password}' | base64 --decode)
+setState "cjoc.pass" "$pass"
 INFO "Login for the first time and generate a Trial License"
 INFO "Log in as admin using password $pass at http://$ROUTE_53_DOMAIN/cjoc/ and get a trial license"
 until curl -f "http://$ROUTE_53_DOMAIN/cjoc/whoAmI/api/json"
