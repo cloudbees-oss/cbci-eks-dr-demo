@@ -52,7 +52,7 @@ getLocals(){
     local demo
     local suffix
     if [ ! -f "$ROOT/demo.state.yaml" ]; then
-        cat <<EOF > demo.state.yaml
+        cat <<EOF > $ROOT/demo.state.yaml
 ---
 aws:
     # UTC | null = Rol assumption not required
@@ -164,4 +164,5 @@ deployCbCi(){
 ## Init
 #######################
 
+getLocals
 setAWSRoleSession

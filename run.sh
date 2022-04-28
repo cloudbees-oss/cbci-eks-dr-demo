@@ -2,7 +2,7 @@
 set -euo pipefail
 # shellcheck source=/dev/null
 source /root/demo-scm/demo.profile.sh
-getLocals; setDebugLevel
+setDebugLevel
 
 SECONDS=0
 
