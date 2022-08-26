@@ -1,0 +1,28 @@
+jenkins:
+  # Best-Practice: Do not use In-Build agents
+  # https://support.cloudbees.com/hc/en-us/articles/115002654991
+  numExecutors: 0
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: ${readFile:${SECRETS}/jenkinsPass}
+        - id: "developer"
+          password: ${readFile:${SECRETS}/jenkinsPass}
+        - id: "guest"
+          password: ${readFile:${SECRETS}/jenkinsPass}
+  # Best-Practice: RBAC as authorization
+  authorizationStrategy: "cloudBeesRoleBasedAccessControl"
+  remotingSecurity:
+    enabled: true
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: true
+security:
+  # Best-Practice: Do not use In-Build agents (extended to controllers)
+  # https://support.cloudbees.com/hc/en-us/articles/115002654991
+  controllerExecutorCount:
+    enforce:
+      canOverride: true
+      count: 0

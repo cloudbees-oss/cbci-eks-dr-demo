@@ -405,23 +405,54 @@ Other scripts to run (`bash xxx.sh`):
 === Troubleshooting
 
 * Set `export DEBUG=true`.
-* Logs for Primary scripts are stored under `logs` folder.
+* Logs for ...
 
-==== Agent Docker run
-
-[source,bash]
-----
-error checking context: 'no permission to read from '/data/code/github/carlosrodlop/cbci-eks-dr-demo/agent/v_kube/cache/discovery/8662CFAF47F7D6D675E3CF921410A579.sk1.us_east_1.eks.amazonaws.com/admissionregistration.k8s.io/v1/serverresources.json''
-----
-
-Inside the agent folder run `sudo chown -R $(whoami) v_kube && sudo chown -R $(whoami) v_tmp`.
-
-==== Credentials, Token expiration
 
 [source,bash]
 ----
-helm.go:81: [debug] the server has asked for the client to provide credentials
-Kubernetes cluster unreachable
+│ Error: Backend initialization required, please run "terraform init"
+│ 
+│ Reason: Initial configuration of the requested backend "s3"
+│ 
+│ The "backend" is the interface that Terraform uses to store state,
+│ perform operations, etc. If this message is showing up, it means that the
+│ Terraform configuration you're using is using a custom configuration for
+│ the Terraform backend.
+│ 
+│ Changes to backend configurations require reinitialization. This allows
+│ Terraform to set up the new configuration, copy existing state, etc. Please run
+│ "terraform init" with either the "-reconfigure" or "-migrate-state" flags to
+│ use the current configuration.
+│ 
+│ If the change reason above is incorrect, please verify your configuration
+│ hasn't changed and try again. At this point, no changes to your existing
+│ configuration or state have been made.
+╵
+
+╷
+│ Error: Backend initialization required, please run "terraform init"
+│ 
+│ Reason: Initial configuration of the requested backend "s3"
+│ 
+│ The "backend" is the interface that Terraform uses to store state,
+│ perform operations, etc. If this message is showing up, it means that the
+│ Terraform configuration you're using is using a custom configuration for
+│ the Terraform backend.
+│ 
+│ Changes to backend configurations require reinitialization. This allows
+│ Terraform to set up the new configuration, copy existing state, etc. Please run
+│ "terraform init" with either the "-reconfigure" or "-migrate-state" flags to
+│ use the current configuration.
+│ 
+│ If the change reason above is incorrect, please verify your configuration
+│ hasn't changed and try again. At this point, no changes to your existing
+│ configuration or state have been made.
+╵
+
+╷
+│ Error: Output "backup_s3_arn" not found
+│ 
+│ The output variable requested could not be found in the state file. If you recently added this to your configuration, be sure to
+│ run `terraform apply`, since the state won't be updated with new output variables until that command is run.
 ----
 
-Please run `source demo demo.profile.sh` the token as expired or is not available for that session.

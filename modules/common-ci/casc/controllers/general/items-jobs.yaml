@@ -1,0 +1,101 @@
+removeStrategy:
+  rbac: SYNC
+  items: NONE
+
+# 1.2.4 | Execution of one (1) simple job to validate agents
+items:
+  - kind: pipeline
+    name: pipeline-scripted
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |
+          parallel([0, 1].collectEntries {b -> ["branch-$b", {
+            podTemplate {
+              node("maven") {
+                stage('prep') {
+                  sh 'curl https://ipinfo.io/'
+                }
+                stage('build') {
+                  mockLoad 180
+                }
+            }
+            checkpoint 'middle'
+            podTemplate {
+              node("maven") {
+                stage('publish') {
+                  archiveArtifacts allowEmptyArchive: true, artifacts: 'mock-artifact-*.txt'
+                  fingerprint 'mock-artifact-*.txt'
+                  junit 'mock-junit.xml'
+                }
+              }
+            }
+          }]})
+          build job: JOB_NAME, wait: false
+  - kind: pipeline
+    name: pipeline-declarative
+    properties:
+      - pipelineTriggers:
+          triggers:
+            - cron:
+                spec: H/5 * * * *
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |
+          pipeline {
+            agent {
+              kubernetes {
+                yaml '''
+          apiVersion: v1
+          kind: Pod
+          spec:
+            containers:
+            - name: ubuntu
+              image: ubuntu
+              command:
+              - sleep
+              args:
+              - infinity
+            tolerations:
+            - key: "dedicated"
+              operator: "Equal"
+              value: "build"
+              effect: "NoSchedule"
+                    '''
+                  }
+              }
+            stages {
+              stage('Beginning') {
+                steps {
+                  container('ubuntu') {
+                      sh 'date > date.txt'
+                      stash name: 'stuff', includes: 'date.txt'
+                    }
+                  }
+                }      
+              stage('End') {
+                  agent { label "maven" } 
+                  steps {
+                    container('maven') {
+                        unstash 'stuff'
+                        sh 'cat date.txt'
+                    }
+                  }
+                }
+              }
+            }
+
+# - kind: cloudbeesTemplatedJob
+#   catalog: cbBlogExamples
+#   name: pipeline-beta
+#   model: cbBlogExamples/simple-java-maven-app
+#   attributes:
+#   - value: GH-token-merck
+#     key: github_creds
+#   - value: pipeline-beta
+#     key: name
+#   - value: no.one@mail.com
+#     key: emailRecipient
+#   - value: https://github.com/jenkins-demo/simple-maven-project-with-tests.git
+#     key: github_repo
