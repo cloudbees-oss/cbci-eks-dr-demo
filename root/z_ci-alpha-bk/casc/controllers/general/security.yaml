@@ -1,3 +1,0 @@
-jenkins:
-  authorizationStrategy: "cloudBeesRoleBasedAccessControl"
-  securityRealm: "operationsCenter"
