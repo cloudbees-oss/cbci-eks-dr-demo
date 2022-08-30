@@ -1,0 +1,14 @@
+{{- $password := (randAlpha 20) | b64enc }}
+{{- $secret := (lookup "v1" "Secret" .Release.Namespace "login") }}
+{{- if $secret }}
+  {{- if (index $secret.data "password") }}
+    {{- $password = index $secret.data "password" }}
+  {{- end -}}
+{{- end -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: login
+type: Opaque
+data:
+  password: {{ $password }}

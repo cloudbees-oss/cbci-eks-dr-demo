@@ -1,0 +1,4 @@
+plugins:
+- id: cloudbees-casc-client
+- id: cloudbees-casc-items-server
+- id: configuration-as-code

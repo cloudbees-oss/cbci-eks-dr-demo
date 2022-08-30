@@ -1,0 +1,10 @@
+apiVersion: "1"
+id: "jenkins"
+version: "1"
+jcasc:
+- jenkins.yaml
+- location.yaml
+plugins:
+- plugins.yaml
+items:
+- items.yaml

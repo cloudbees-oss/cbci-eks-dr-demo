@@ -1,0 +1,18 @@
+repositories:
+  - name: "cloudbees"
+    url: https://charts.cloudbees.com/public/cloudbees
+helmDefaults:
+  wait: true
+  timeout: 1200
+  recreatePods: false
+  historyMax: 0
+  createNamespace: true
+  cleanupOnFail: true
+releases:
+  # https://artifacthub.io/packages/helm/cloudbees/cloudbees-core
+  - name: "cbci"
+    namespace: "cbci-hf"
+    chart: "cloudbees/cloudbees-core"
+    version: "3.42.6+c9672cd0453e"
+    values:
+      - cbci.yaml

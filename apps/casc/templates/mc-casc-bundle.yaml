@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mc-casc-bundle
+data:
+  bundle.yaml: |
+{{ .Files.Get "mc/bundle.yaml" | indent 4 }}
+  jenkins.yaml: |
+{{ .Files.Get "mc/jenkins.yaml" | indent 4 }}
+  plugins.yaml: |
+{{ .Files.Get "mc/plugins.yaml" | indent 4 }}
+  plugin-catalog.yaml: |
+{{ .Files.Get "mc/plugin-catalog.yaml" | indent 4 }}
+  items.yaml: |
+{{ .Files.Get "mc/items.yaml" | indent 4 }}
