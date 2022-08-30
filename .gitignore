@@ -13,5 +13,5 @@ kubeconfig_*
 license.xml
 secrets.yaml
 /logs
-*.log
+*.logs
 *.plan
