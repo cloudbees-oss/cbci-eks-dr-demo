@@ -3,8 +3,8 @@ jenkins:
     local:
       allowsSignup: false
       users:
-      - id: admin
-        password: ${readFile:/var/login/password}
+        - id: admin
+          password: admin
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
@@ -15,19 +15,19 @@ jenkins:
     masters:
       name: Controllers
       jobFilters:
-      - connectedMasterViewFilter
+        - connectedMasterViewFilter
       recurse: true
       columns:
-      - status
-      - weather
-      - jobName
-      - manageMaster
-      - masterConfigurationStaleViewColumn
-      - totalJobsViewColumn
-      - queueSizeViewColumn
-      - jenkinsVersionViewColumn
-      - cascViewColumn
-      - listSelectionColumn
+        - status
+        - weather
+        - jobName
+        - manageMaster
+        - masterConfigurationStaleViewColumn
+        - totalJobsViewColumn
+        - queueSizeViewColumn
+        - jenkinsVersionViewColumn
+        - cascViewColumn
+        - listSelectionColumn
   crumbIssuer:
     standard:
       # externalTrafficPolicy setting in ingress.yaml not working?

@@ -3,31 +3,31 @@ image:
   tag: concurrent-snapshot
   pullPolicy: Always
 initContainers:
-- name: velero-plugin-for-aws
-  image: ghcr.io/jglick/velero-plugin-for-aws:x-region
-  imagePullPolicy: Always
-  volumeMounts:
-  - mountPath: /target
-    name: plugins
-- name: inject-metadata-velero-plugin
-  image: ghcr.io/cloudbees-oss/inject-metadata-velero-plugin:main
-  imagePullPolicy: Always
-  volumeMounts:
-  - mountPath: /target
-    name: plugins
+  - name: velero-plugin-for-aws
+    image: ghcr.io/jglick/velero-plugin-for-aws:x-region
+    imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+  - name: inject-metadata-velero-plugin
+    image: ghcr.io/cloudbees-oss/inject-metadata-velero-plugin:main
+    imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
 configuration:
   provider: aws
   backupStorageLocation:
-    bucket: @NAME@
+    bucket: velero.beta.backup
     config:
-      region: @WEST_REGION@
+      region:
   volumeSnapshotLocation:
     config:
-      region: @REGION@
-      altRegion: @WEST_REGION@
+      region: us-east-1
+      altRegion: us-east-2
   extraEnvVars:
-    AWS_CLUSTER_NAME: @NAME@-@REGION@
-    VELERO_AWS_AZ_OVERRIDE: @ZONE@
+    AWS_CLUSTER_NAME: dr-ci-demo-alpha-us-east-1
+    VELERO_AWS_AZ_OVERRIDE: us-east-1a
 serviceAccount:
   server:
     create: false

@@ -7,7 +7,7 @@ provider "aws" {
 }
 
 locals {
-  s3_backup_name = "velero.backup"
+  s3_backup_name = "velero.${var.dr_cluster}.backup"
 }
 
 module "aws_s3_backups" {

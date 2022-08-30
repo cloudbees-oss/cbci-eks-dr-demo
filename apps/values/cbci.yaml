@@ -1,7 +1,17 @@
+HibernationEnabled: false
 OperationsCenter:
-  HostName: crl.core.pscbdemos.com
-  #https://support.cloudbees.com/hc/en-us/articles/360058867672
-  Platform: "aws"
+  Annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+  HostName: ci.dw22.pscbdemos.com
+  Ingress:
+    Annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/tags: cb-environment=demo,cb-owner=devops-consultants,cb-user=crodriguezlopez
+    Class: alb
+  JavaOpts: -Dcom.cloudbees.jenkins.cjp.installmanager.CJPPluginManager.enablePluginCatalogInOC=true -Dcom.cloudbees.masterprovisioning.kubernetes.KubernetesMasterProvisioning.deleteClaim=true
+  Platform: eks
+  Protocol: https
   CasC:
     Enabled: true
   ExtraVolumes:
@@ -18,5 +28,15 @@ OperationsCenter:
     - name: login
       mountPath: /var/login
       readOnly: true
-Hibernation:
-  Enabled: true
+  Resources:
+    Limits:
+      Cpu: 2
+      Memory: 4G
+    Requests:
+      Cpu: 2
+      Memory: 4G
+  Tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      operator: Equal
+      value: apps

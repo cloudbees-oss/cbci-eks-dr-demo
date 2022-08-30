@@ -144,7 +144,7 @@ _common_init_and_apply:
 	$(call title,Building Common infra)
 	$(call infra_init,common)
 	$(call clean,common)
-	terraform -chdir=$(INFRA_DIR)/common plan -out="common.plan" -var-file=../../env/common.tfvars -input=false
+	terraform -chdir=$(INFRA_DIR)/common plan -out="common.plan" -var-file=../../env/infra-cbci-eks.tfvars -var-file=../../env/ci-beta.tfvars -input=false
 	terraform -chdir=$(INFRA_DIR)/common apply "common.plan"
 
 _ci_init_alpha:
