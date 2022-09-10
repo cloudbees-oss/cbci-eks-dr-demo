@@ -121,7 +121,7 @@ module "eks_blueprints_kubernetes_addons" {
   enable_metrics_server               = true
   enable_cluster_autoscaler           = true
   enable_aws_cloudwatch_metrics       = true
-  # enable_velero                       = true
+  enable_velero                       = true
   # values = [templatefile("${path.module}/values.yaml", {
   #   bucket = "<YOUR_BUCKET_NAME>",
   #   region = "<YOUR_BUCKET_REGION>"

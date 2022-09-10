@@ -1,6 +1,3 @@
-# 00 Day - Infra
-####################
-
 output "update_kubeconfig_command" {
   value = "aws eks update-kubeconfig --name ${module.eks_blueprints.eks_cluster_id} --alias ${module.eks_blueprints.eks_cluster_id}"
 }

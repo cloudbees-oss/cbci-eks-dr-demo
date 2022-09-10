@@ -1,0 +1,19 @@
+jenkins:
+  quietPeriod: 1
+  views:
+  - all:
+      name: all
+  - groovy:
+      name: ipinfo
+      # TODO script needs to be approved in order to work
+      script: |
+        Running in ^${new groovy.json.JsonSlurper().parseText(new URL('https://ipinfo.io/').text).timezone}
+unclassified:
+  hibernationConfiguration: # TODO BEE-650
+    enabled: true
+    gracePeriod: 1800
+  usageStatisticsCloudBees:
+    disabledJenkinsUsageStatistics: true
+    usageStatisticsCollected: false
+  timestamper:
+    allPipelines: true

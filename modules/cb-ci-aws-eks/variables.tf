@@ -8,9 +8,16 @@ variable "aws_profile" {
   description = "AWS profile"
 }
 
+variable "ci_subdomain" {
+  default = "ci"
+  type    = string
+}
+
 variable "domain_name" {
   type = string
 }
+
+variable "ci_chart_version" {}
 
 variable "dr_cluster" {
   default = "alpha"

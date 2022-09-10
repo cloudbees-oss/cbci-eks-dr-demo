@@ -33,3 +33,4 @@ variable "tags" {
   type    = map(string)
 }
 
+variable "ci_chart_version" {}
