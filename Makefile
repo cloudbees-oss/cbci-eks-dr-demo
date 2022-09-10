@@ -130,7 +130,7 @@ down_ci_dr: _ci_down_beta _ci_down_alpha
 
 _apps_primary:
 
-	helmfile --file $(APPS_DIR)/hf.primary.yaml apply
+	helmfile --debug --file $(APPS_DIR) apply
 
 _check_availability:
 

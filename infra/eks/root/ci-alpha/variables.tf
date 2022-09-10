@@ -13,19 +13,19 @@ variable "domain_name" {
 }
 
 variable "dr_cluster" {
-  type = string
+  default = "alpha"
+  type    = string
+
+  validation {
+    condition     = contains(["alpha", "beta"], var.dr_cluster)
+    error_message = "Provided DR cluster code is not valid. Valid values are alpha and beta."
+  }
 }
 
 variable "primary_cluster" {
   description = "Flag to set primary cluster."
   type        = bool
   default     = false
-}
-
-variable "deploy_apps" {
-  description = "Flag to deploy apps. It is used to clean a cluster."
-  default     = true
-  type        = bool
 }
 
 variable "tags" {

@@ -2,7 +2,7 @@
 ####################
 
 output "update_kubeconfig_command" {
-  value = "aws eks update-kubeconfig --name ${module.eks.cluster_id} --alias ${module.eks.cluster_id} --profile ${var.aws_profile} --region ${var.aws_region}"
+  value = "aws eks update-kubeconfig --name ${module.eks_blueprints.eks_cluster_id} --alias ${module.eks_blueprints.eks_cluster_id}"
 }
 
 

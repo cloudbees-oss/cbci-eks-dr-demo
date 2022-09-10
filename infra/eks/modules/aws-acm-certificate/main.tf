@@ -8,7 +8,7 @@ resource "aws_acm_certificate" "this" {
 }
 
 resource "aws_route53_record" "this" {
-  for_each = {for option in aws_acm_certificate.this.domain_validation_options : option.domain_name => option}
+  for_each = { for option in aws_acm_certificate.this.domain_validation_options : option.domain_name => option }
   name     = each.value["resource_record_name"]
   records  = [each.value["resource_record_value"]]
   ttl      = 60

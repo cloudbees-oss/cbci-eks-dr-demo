@@ -1,6 +1,5 @@
-
-module "ci_common" {
-  source          = "../../modules/infra-cbci-eks"
+module "cb-ci" {
+  source          = "../../modules/cb-ci"
   aws_region      = var.aws_region
   aws_profile     = var.aws_profile
   domain_name     = var.domain_name
