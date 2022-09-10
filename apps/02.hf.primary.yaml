@@ -20,5 +20,5 @@ releases:
     namespace: cbci
     chart: casc
     values:
-      - domain: dw22.pscbdemos.com
+      - domain: ci.dw22.pscbdemos.com
       - mcCount: 5

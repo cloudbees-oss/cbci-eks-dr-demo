@@ -23,20 +23,15 @@ OperationsCenter:
         secretName: login
   ExtraVolumeMounts:
     - name: mc-casc-bundle
-      mountPath: /var/jenkins_home/jcasc-bundles-store/mc
+      mountPath: /var/jenkins_home/cb-casc-bundles-store/mc
       readOnly: true
     - name: login
       mountPath: /var/login
       readOnly: true
   Resources:
     Limits:
-      Cpu: 2
-      Memory: 4G
+      Cpu: 1
+      Memory: 2G
     Requests:
-      Cpu: 2
-      Memory: 4G
-  Tolerations:
-    - effect: NoSchedule
-      key: dedicated
-      operator: Equal
-      value: apps
+      Cpu: 1
+      Memory: 2G

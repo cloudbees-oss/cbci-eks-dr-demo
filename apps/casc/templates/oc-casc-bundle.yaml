@@ -30,7 +30,21 @@ data:
           domain: mc{{ . }}
           memory: 1500
           cpus: 0.6
-          disk: 30
+          disk: 20
+      nodeSelectors: dedicated=apps
+      yaml: |-
+        kind: StatefulSet
+        spec:
+          template:
+            metadata:
+              annotations:
+                cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+            spec:
+              tolerations:
+              - key: "dedicated"
+                operator: "Equal"
+                value: "apps"
+                effect: "NoSchedule"
 {{- end }}
 {{- else }}
     items: []
