@@ -5,5 +5,5 @@ locals {
 }
 
 output "cjoc_url" {
-  value = "${local.cjoc_host}${local.cjoc_path}"
+  value = "${local.protocol}://${local.cjoc_host}${local.cjoc_path}"
 }

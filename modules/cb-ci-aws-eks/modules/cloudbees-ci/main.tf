@@ -1,11 +1,20 @@
-locals {
-  oc_secret_data = fileexists("values/secrets.yaml") ? yamldecode(file("values/secrets.yaml")) : {}
+data "kubernetes_ingress" "cjoc" {
+  depends_on = [helm_release.cbci]
 
+  metadata {
+    name      = "cjoc"
+    namespace = var.namespace
+  }
+}
+
+locals {
+  oc_secret_data = fileexists("${path.module}/values/secrets.yaml") ? yamldecode(file("${path.module}/values/secrets.yaml")) : {}
+  protocol       = "https"
   values = yamlencode({
     OperationsCenter = {
       Platform = var.platform
       HostName = var.host_name
-      Protocol = "https"
+      Protocol = local.protocol
       Resources = {
         Limits = {
           Cpu    = var.oc_cpu
@@ -23,7 +32,7 @@ locals {
       ContainerEnv = [
         {
           name  = "SECRETS"
-          value = var.secret_mount_path
+          value = "/var/run/secrets/cjoc"
         }
       ]
       ExtraVolumes = [{
@@ -80,24 +89,11 @@ resource "kubernetes_namespace" "this" {
 
 }
 
-resource "kubernetes_config_map" "casc_bundle" {
-  depends_on = [time_sleep.wait]
-  for_each   = local.create_bundle ? local.this : []
-
-  metadata {
-    name      = var.oc_configmap_name
-    namespace = var.namespace
-  }
-
-  data = local.oc_bundle_data
-}
-
 resource "kubernetes_secret" "secrets" {
   depends_on = [time_sleep.wait]
-  for_each   = local.create_secret ? local.this : []
 
   metadata {
-    name      = var.oc_secret_name
+    name      = "oc-secrets"
     namespace = var.namespace
   }
 
@@ -105,7 +101,7 @@ resource "kubernetes_secret" "secrets" {
 }
 
 resource "helm_release" "cbci" {
-  depends_on = [time_sleep.wait]
+  depends_on = [helm_release.casc]
 
   chart      = "cloudbees-core"
   name       = "cloudbees-ci"
@@ -117,15 +113,13 @@ resource "helm_release" "cbci" {
 }
 
 resource "helm_release" "casc" {
-  depends_on = [time_sleep.wait]
+  depends_on = [kubernetes_secret.secrets]
 
-  chart      = "casc"
-  name       = "casc"
-  namespace  = var.namespace
-  repository = "./casc"
-  values     = [local.values]
-  version    = var.chart_version
-  replace    = true
+  name      = "casc"
+  chart     = "${path.module}/charts/casc"
+  namespace = var.namespace
+  values    = [local.values]
+  replace   = true
   set {
     name  = "domain"
     value = var.host_name

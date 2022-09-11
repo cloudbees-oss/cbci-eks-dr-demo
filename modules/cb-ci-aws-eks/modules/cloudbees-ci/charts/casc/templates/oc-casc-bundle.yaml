@@ -5,6 +5,8 @@ metadata:
 data:
   bundle.yaml: |
 {{ .Files.Get "oc/bundle.yaml" | indent 4 }}
+  license.yaml: |
+{{ .Files.Get "oc/license.yaml" | indent 4 }}
   jenkins.yaml: |
 {{ .Files.Get "oc/jenkins.yaml" | indent 4 }}
   location.yaml: |
@@ -31,20 +33,13 @@ data:
           memory: 1500
           cpus: 0.6
           disk: 20
-      nodeSelectors: dedicated=apps
-      yaml: |-
-        kind: StatefulSet
-        spec:
-          template:
-            metadata:
-              annotations:
-                cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
-            spec:
-              tolerations:
-              - key: "dedicated"
-                operator: "Equal"
-                value: "apps"
-                effect: "NoSchedule"
+      # yaml: |-
+      #   kind: StatefulSet
+      #   spec:
+      #     template:
+      #       metadata:
+      #         annotations:
+      #           cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
 {{- end }}
 {{- else }}
     items: []

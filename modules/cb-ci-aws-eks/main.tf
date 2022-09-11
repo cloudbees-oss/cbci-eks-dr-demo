@@ -1,10 +1,24 @@
-provider "aws" {
-  region  = var.aws_region
-  profile = var.aws_profile
-  default_tags {
-    tags = var.tags
-  }
-}
+# provider "aws" {
+#   region  = var.aws_region
+#   profile = var.aws_profile
+#   default_tags {
+#     tags = var.tags
+#   }
+# }
+
+# provider "kubernetes" {
+#   host                   = module.eks.k8s_cluster_endpoint
+#   cluster_ca_certificate = module.eks.k8s_cluster_certificate
+#   token                  = module.eks.k8s_cluster_token
+# }
+
+# provider "helm" {
+#   kubernetes {
+#     host                   = module.eks.k8s_cluster_endpoint
+#     cluster_ca_certificate = module.eks.k8s_cluster_certificate
+#     token                  = module.eks.k8s_cluster_token
+#   }
+# }
 
 locals {
   s3_backup_name = "velero.${var.dr_cluster}.backup"
@@ -57,7 +71,6 @@ module "cloudbees_ci" {
   ingress_class       = local.ingress_class
   oc_cpu              = 1
   oc_memory           = 2
-
 }
 
 module "aws_s3_backups" {

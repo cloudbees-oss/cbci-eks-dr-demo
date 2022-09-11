@@ -1,5 +1,3 @@
-# Common
-##########################
 
 variable "domain_name" {
   type = string
@@ -9,9 +7,6 @@ variable "tags" {
   default = {}
   type    = map(string)
 }
-
-# 00 Day
-##########################
 
 variable "dr_cluster" {
   default = "alpha"
@@ -53,3 +48,14 @@ variable "cidr_block" {
   }
 }
 
+# variable "vpc_id" {
+#   type = string
+# }
+
+# variable "private_subnet_ids" {
+#   type = set(string)
+# }
+
+variable "bucket_region" {
+  type = string
+}

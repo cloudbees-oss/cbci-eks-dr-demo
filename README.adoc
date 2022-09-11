@@ -1,4 +1,6 @@
-# CloudBees CI cross-region disaster recovery on Elastic Kubernetes Service using Elastic Block Store
+= CloudBees CI cross-region disaster recovery on Elastic Kubernetes Service using Elastic Block Store
+
+== The Theory
 
 CloudBees CI customers are always interested in backup and restore,
 but also inquire about the possibility of link:https://en.wikipedia.org/wiki/Disaster_recovery[disaster recovery (DR)].
@@ -38,7 +40,7 @@ For example, link:https://cloud.google.com/gcp[Google Cloud (GCP)]
 is planning a link:https://cloud.google.com/blog/products/storage-data-transfer/google-cloud-launches-backups-for-gke[native integrated backup system]
 for link:https://cloud.google.com/kubernetes-engine[Google Kubernetes Engine (GKE)].
 
-== DR requirements for CloudBees CI
+=== DR requirements for CloudBees CI
 
 Broadly speaking, there are several requirements for cross-region DR of CloudBees CI:
 
@@ -82,7 +84,7 @@ This is only an option for a customer who has translated every significant syste
 Even then it may be desirable to perform a filesystem-level restore from backup for DR purposes,
 in order to preserve transient data such as build history.
 
-== CloudBees CI product support for DR
+=== CloudBees CI product support for DR
 
 CloudBees CI is compatible with DR, including across regions.
 From a technical standpoint, the following major components are involved:
@@ -127,7 +129,7 @@ If only a portion of the defined managed controllers were actually running at th
 the same is true after the restore.
 SCM webhooks delivered to the restored cluster can “wake up” hibernated managed controllers and trigger builds as usual.
 
-== Using Velero on AWS
+=== Using Velero on AWS
 
 Velero includes a standard plugin for AWS,
 specifically based on S3 metadata storage and EBS volume snapshots.
@@ -200,21 +202,13 @@ It records the identifier of the current restore in every `StatefulSet` as an en
 so that managed controllers using the Restart Aborted Builds plugin
 are alerted to the fact that a restore from a backup has occurred.
 
-== Demonstration environment details
+== The Practice
 
-The associated folder includes a complete, self-contained environment
-to see CloudBees CI running in EKS in a primary region (`us-east-1`),
-backed up every 15 minutes using Velero with EBS snapshots replicated to the fallback region (`us-west-1`),
-with the ability to restore to either the same cluster or a cluster in the fallback region on demand.
+=== Environment details
 
-Scripts are included to create both clusters and install all required software:
-CloudBees CI, Velero, and system tools, such as an ingress controller.
-The setup scripts also create an S3 bucket for metadata
-and configure an IAM policy suitable for Velero.
+The associated folder includes a complete, self-contained environment to see CloudBees CI running in EKS in a primary region (`us-east-1`), backed up every 15 minutes using Velero with EBS snapshots replicated to the fallback region (`us-west-1`), with the ability to restore to either the same cluster or a cluster in the fallback region on demand.
 
-All you need is authentication to an AWS account with sufficient permissions to create such resources.
-You also need a domain name for serving HTTP traffic to CloudBees CI that has been registered in a Route 53 zone;
-an included script configures Route 53 to point to either the east or west region.
+GNU make targets orchestrate terraform command to create both clusters, install CloudBees CI, and configure Velero. Also included are targets to demonstrate the backup on primary region and restore process in secondary. 
 
 Along with the Helm chart for CloudBees CI,
 link:https://docs.cloudbees.com/docs/cloudbees-ci/latest/casc-oc/[CloudBees CasC for the operations center]
@@ -224,235 +218,25 @@ A set of managed controllers (by default 5, but this can be overridden to test l
 along with example Pipeline jobs on each managed controller, demonstrating behavior of various steps and simulated workloads.
 Managed controllers hibernate automatically after a period of inactivity.
 
-== Preparation 
+=== Pre-requisites 
 
-=== Demo Agent
-
-The demonstration agent contains all the required tools and configuration for this demo.
-
-The script `agent/run.sh` build and run the agent for you.   
-
-* The container will be binding the source code of the demo in `/root/demo-scm` to be able to run the commands listed under _Operation script reference_ section. On the other hand, it would be using the `$HOME/.aws` configuration from the Docker host.
-* Additionally, a couple of docker volumens will be attached, one for saving the kubectl config configuration (`v_kube`) and another with all temporal files created during the demo execution (`v_tmp`).
+1. Authentication to an AWS account with sufficient permissions to create such resources. This demo uses AWS profile but you could adapt the AWS provider `cbci-eks-dr-demo/modules/cb-ci-aws-eks/provider.tf` to your own needs.
+2. You also need an existing Route 53 Hosted Zone to register a record for serving HTTPs traffic to CloudBees CI. It will be managed by External DNS which will point to the Alpha ALB.
 
 === Demo Configuration 
 
-The configuration of the demo is centralized in the file `demo.profile.sh` 
+The configuration of the demo is centralized in the folder `env` which contains files with variables per environment and common ones.
 
-Configure your own AWS environment by updating the required parameters `AWS_PROFILE`, `ROUTE_53_DOMAIN`, `ROUTE_53_ZONE_ID` in the `demo.profile.sh` file. 
-
-* `AWS_PROFILE` requires to be included into `$HOME/.aws/config`
-* `ROUTE_53_ZONE_ID` requires an existing Hosted Zone. 
-* `ROUTE_53_DOMAIN` could be a new or exiting domain but it required to be managed by `ROUTE_53_ZONE_ID` (above)
-
-IMPORTANT: If you want to run any command outside provided scripts, run first `source /root/demo-scm/demo.profile.sh` to load the environments. Note that `getLocals` load parametres required by the demo scripts.
-
-=== Demo State 
-
-The execution commands (mainly `setup.sh` and `teardown.sh`) depends on the `demo.state.yaml` to make the scripts idempotent.
-
-=== Assume Role Token Expiration (optional)
-
-For those organization which uses link:https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html[assume roles] credentials for AWS, like CloudBees, the function `setAWSRoleSession` refresh the token when sourcing  `demo.profile.sh`. This fuction is also called during the most time-consuming processes to avoid the AWS rol token expiration.
-
-It is managed by the variable `AWS_ASSUME_ROLE`. Set it to null in case you work with user credentials instead of rol crendentials.
-
-== Cross-region disaster recovery simulation
-
-All the demo commands are orchestrated by the parent script `run.sh` to centralize logs and timing. 
+=== Demo in Action
 
 [source,bash]
 ----
-$> bash run.sh
-Select one of the folloing option and press [ENTER]:
-
-build [B]
-reload-cbci [L]
-scale [S]
-restore [R]
-destroy [D]
+$> make 
 ----
-
-=== Building [B]
-
-The option **B** will build up the Demo Environment. 
-
-A random environment identifier is generated and saved in `demo.state.yaml`, to ensure all resource names are unique. The name is also composed by `MY_DEMO_ID` just to help us to quickly identify who was running the demo without using tags ;)
-
-During the setup command a link:https://velero.io/docs/v1.8/how-velero-works/#scheduled-backups[sheduled backup] is set up every 15 minutes. 
-
-When prompted after approximately an hour to build the infra and deploy the apps in the East and West regions, you need to sign in to the operations center as the `admin` user and get a trial license when you see the following in the console logs:
-
-[source,bash]
-----
-...
-Log in as admin using password eXamPlePaSS at http://ci.dr-example.com/cjoc/ and get a trial license.
-...
-----
-
-The values for authentication are saved in `demo.state.yaml` too.
-
-=== Scale [B] (Optional)
-
-The nodegroup `ng-linux` will be scaled in both clusters (East and West) according to the value of the variable `SCALE` in `demo.profile.sh`.
-
-[source,bash]
-----
-$> bash run.sh
-Select one of the folloing option and press [ENTER]:
-...
-scale [S]
-...
-s
-----
-
-=== Load [L]
-
-In case the number of nodes were scaled up/down, the number of Managed Master can be adjusted accordingly by the variable `MC_COUNT` in `demo.profile.sh`.
-
-Once the building/scaling of the demo finishes `OK`, move the context to the Main Region (`east`) and hit `run` with option **L** to ensure all configured managed controllers are awake and trigger builds for each of their jobs. 
-
-[source,bash]
-----
-$> source demo.profile.sh
-...
-$> in-east
-...
-$> bash run.sh
-Select one of the folloing option and press [ENTER]:
-...
-reload-cbci [L]
-...
-l
-----
-
-=== Check backup status
-
-The following command is issued to verify if the status of the velero backups:
-
-----
-$> velero get backups
-----
-
-NOTE: Backups must be present on both regions.
-
-The backups are setup to TTL of 1 hour, then they link:https://velero.io/docs/v1.8/how-velero-works/#set-a-backup-to-expire[expire].
-
-=== Restore [R]
-
-Once some of the backups have been completed after fininshing with the Load of the Main Region, move the context to the Main Region (`west`) and issue command `run` with the option **R**.
-
-[source,bash]
-----
-$> source demo.profile.sh
-...
-$> in-west
-...
-$> bash run.sh
-Select one of the folloing option and press [ENTER]:
-...
-restore [R]
-...
-r
-----
-
-After a few minutes, CloudBees CI should be back up and running in the fallback region.
-
-Visit some managed controllers. You should see an administrative monitor from the Restart Aborted Builds plugin.
-
-=== Destroying the Demo [D]
-
-When you are finished, issue the following command `run` with the option **D** to clean up all demonstration resources from your account.
-
-[source,bash]
-----
-$> bash run.sh
-Select one of the folloing option and press [ENTER]:
-...
-destroy [D]
-...
-d
-----
-
-== Operation script reference
-
-Script to configure the shell (`source xxx.sh`):
-
-* `demo.profile.sh`: Load basic environment variables and functions.
-
-State file
-
-* `demo.state.yaml`: Save state informacion used by demo commands (mainly for `setup.sh` and `teardown.sh`)
-
-Primary scripts to run via `run.sh`
-
-* `setup.sh` (`run.sh [B]`):  Set up the two clusters in two regions and associated resources. It calls to `switch-dns.sh` to create/switch a DNS (Route 53) pointing to an ELB endpoint of the target cluster. 
-* `reload-cbci.sh` (`run.sh [L]`): Refresh the operations center from Helm, and apply CasC to create/update managed controllers to the selected region. Finally, it calls to  `wake-and-build.sh` to simulate CI trigger events for jobs.
-* `scale.sh` (`run.sh [S]`): Change the size of the node pool in both regions.
-* `restore.sh` (`run.sh [R]`): Restore a backup in the currently selected region (initiate DR).It calls to `switch-dns.sh` to update DNS (Route 53) to a different ELB endpoint. 
-* `teardown.sh` (`run.sh [D]`): Reverse of `setup.sh`. Deletes clusters, S3 bucket, IAM policy, and EBS snapshots from Velero.
-
-Scripts called by primary scripts (above)
-
-* `switch-dns.sh`: Switch Route 53 DNS record to the currently selected regional cluster.
-* `wake-and-build.sh`: Trigger a build on a managed controller, waking it from hibernation as needed.
-* `cli.sh`: Run a CLI command on the operations center or a managed controller. 
-
-Other scripts to run (`bash xxx.sh`):
-
-* `back-up.sh`: Initiate a link:https://velero.io/docs/v1.8/how-velero-works/#on-demand-backups[on demand backup], if you do not wish to use a scheduled backup.
 
 === Troubleshooting
 
 * Set `export DEBUG=true`.
 * Logs for ...
 
-
-[source,bash]
-----
-│ Error: Backend initialization required, please run "terraform init"
-│ 
-│ Reason: Initial configuration of the requested backend "s3"
-│ 
-│ The "backend" is the interface that Terraform uses to store state,
-│ perform operations, etc. If this message is showing up, it means that the
-│ Terraform configuration you're using is using a custom configuration for
-│ the Terraform backend.
-│ 
-│ Changes to backend configurations require reinitialization. This allows
-│ Terraform to set up the new configuration, copy existing state, etc. Please run
-│ "terraform init" with either the "-reconfigure" or "-migrate-state" flags to
-│ use the current configuration.
-│ 
-│ If the change reason above is incorrect, please verify your configuration
-│ hasn't changed and try again. At this point, no changes to your existing
-│ configuration or state have been made.
-╵
-
-╷
-│ Error: Backend initialization required, please run "terraform init"
-│ 
-│ Reason: Initial configuration of the requested backend "s3"
-│ 
-│ The "backend" is the interface that Terraform uses to store state,
-│ perform operations, etc. If this message is showing up, it means that the
-│ Terraform configuration you're using is using a custom configuration for
-│ the Terraform backend.
-│ 
-│ Changes to backend configurations require reinitialization. This allows
-│ Terraform to set up the new configuration, copy existing state, etc. Please run
-│ "terraform init" with either the "-reconfigure" or "-migrate-state" flags to
-│ use the current configuration.
-│ 
-│ If the change reason above is incorrect, please verify your configuration
-│ hasn't changed and try again. At this point, no changes to your existing
-│ configuration or state have been made.
-╵
-
-╷
-│ Error: Output "backup_s3_arn" not found
-│ 
-│ The output variable requested could not be found in the state file. If you recently added this to your configuration, be sure to
-│ run `terraform apply`, since the state won't be updated with new output variables until that command is run.
-----
 

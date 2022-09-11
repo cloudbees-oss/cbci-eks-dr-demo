@@ -4,7 +4,7 @@ jenkins:
       allowsSignup: false
       users:
         - id: admin
-          password:
+          password: ${readFile:${SECRETS}/jenkinsPass}
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false

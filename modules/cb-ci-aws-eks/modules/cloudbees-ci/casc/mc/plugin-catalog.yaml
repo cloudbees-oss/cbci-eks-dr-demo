@@ -1,9 +1,0 @@
-type: plugin-catalog
-version: '1'
-name: mc
-configurations:
-- description: Exported plugins
-  includePlugins:
-    mock-load-builder:
-      # https://github.com/jenkinsci/mock-load-builder-plugin/releases
-      version: 54.v39abc2f1e659

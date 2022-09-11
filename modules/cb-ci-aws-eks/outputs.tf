@@ -5,3 +5,7 @@ output "update_kubeconfig_command" {
 output "set_kubectl_context_command" {
   value = module.eks.set_kubectl_context_command
 }
+
+output "cjoc_url" {
+  value = module.cloudbees_ci.cjoc_url
+}

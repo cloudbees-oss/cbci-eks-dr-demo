@@ -18,16 +18,16 @@ initContainers:
 configuration:
   provider: aws
   backupStorageLocation:
-    bucket: velero.beta.backup
+    bucket: ${bucket_name}
     config:
-      region:
+      region: ${bucket_region}
   volumeSnapshotLocation:
     config:
-      region: us-east-1
-      altRegion: us-east-2
+      region: ${snapshot_region}
+      altRegion: ${snapshot_altregion}
   extraEnvVars:
-    AWS_CLUSTER_NAME: dr-ci-demo-alpha-us-east-1
-    VELERO_AWS_AZ_OVERRIDE: us-east-1a
+    AWS_CLUSTER_NAME: ${cluster_name}
+    VELERO_AWS_AZ_OVERRIDE: ${velero_az_override}
 serviceAccount:
   server:
     create: false

@@ -1,18 +1,3 @@
-
-provider "kubernetes" {
-  host                   = module.eks_blueprints.eks_cluster_endpoint
-  cluster_ca_certificate = local.cluster_ca_certificate
-  token                  = local.cluster_auth_token
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = module.eks_blueprints.eks_cluster_endpoint
-    cluster_ca_certificate = local.cluster_ca_certificate
-    token                  = local.cluster_auth_token
-  }
-}
-
 data "aws_caller_identity" "current" {}
 
 data "aws_availability_zones" "available" {}
@@ -122,11 +107,14 @@ module "eks_blueprints_kubernetes_addons" {
   enable_cluster_autoscaler           = true
   enable_aws_cloudwatch_metrics       = true
   enable_velero                       = true
-  # values = [templatefile("${path.module}/values.yaml", {
-  #   bucket = "<YOUR_BUCKET_NAME>",
-  #   region = "<YOUR_BUCKET_REGION>"
-  # })]
-
+  values = [templatefile("${path.module}/values/velero.yaml", {
+    bucket_name        = "<YOUR_BUCKET_NAME>",
+    bucket_region      = "<YOUR_BUCKET_REGION>"
+    snapshot_region    = "<YOUR_SNAPSHOT_REGION>"
+    snapshot_altregion = "<YOUR_SNAPSHOT_REGION>"
+    cluster_name       = local.cluster_name
+    velero_az_override = "<VELERO_AWS_AZ_OVERRIDE>"
+  })]
   tags = local.tags
 }
 

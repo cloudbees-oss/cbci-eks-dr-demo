@@ -1,0 +1,60 @@
+removeStrategy:
+  rbac: SYNC
+  items: NONE
+items:
+  - kind: pipeline
+    name: easily-resumable
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |
+          input 'Proceed?'
+  - kind: pipeline
+    name: uses-agents
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |
+          parallel([0, 1].collectEntries {b -> ["branch-$b", {
+            podTemplate {
+              node(POD_LABEL) {
+                stage('prep') {
+                  sh 'curl https://ipinfo.io/'
+                }
+                stage('build') {
+                  mockLoad 180
+                }
+                stage('publish') {
+                  archiveArtifacts allowEmptyArchive: true, artifacts: 'mock-artifact-*.txt'
+                  fingerprint 'mock-artifact-*.txt'
+                  junit 'mock-junit.xml'
+                }
+              }
+            }
+          }]})
+          build job: JOB_NAME, wait: false
+  - kind: pipeline
+    name: checkpointed
+    definition:
+      cpsFlowDefinition:
+        sandbox: true
+        script: |
+          podTemplate {
+            node(POD_LABEL) {
+              stage('beginning') {
+                sh 'sleep 30'
+                sh 'date > date.txt'
+                stash name: 'stuff', includes: 'date.txt'
+              }
+            }
+          }
+          checkpoint 'middle'
+          podTemplate {
+            node(POD_LABEL) {
+              stage('end') {
+                unstash 'stuff'
+                sh 'cat date.txt'
+                sh 'sleep 1h'
+              }
+            }
+          }

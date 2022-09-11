@@ -1,0 +1,5 @@
+license:
+  certificate: |
+    ${readFile:${SECRETS}/licenseCert}
+  key: |
+    ${readFile:${SECRETS}/licenseKey}
