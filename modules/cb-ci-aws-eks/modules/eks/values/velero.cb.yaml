@@ -1,0 +1,32 @@
+image:
+  repository: ghcr.io/jglick/velero
+  tag: concurrent-snapshot
+  pullPolicy: Always
+initContainers:
+  - name: velero-plugin-for-aws
+    image: ghcr.io/jglick/velero-plugin-for-aws:x-region
+    imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+  - name: inject-metadata-velero-plugin
+    image: ghcr.io/cloudbees-oss/inject-metadata-velero-plugin:main
+    imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+configuration:
+  provider: aws
+  backupStorageLocation:
+    bucket: ${bucket_name}
+    config:
+      region: ${bucket_region}
+  volumeSnapshotLocation:
+    config:
+      region: ${snapshot_region}
+      altRegion: ${snapshot_altregion}
+  extraEnvVars:
+    AWS_CLUSTER_NAME: ${cluster_name}
+    VELERO_AWS_AZ_OVERRIDE: ${velero_az_override}
+credentials:
+  useSecret: false

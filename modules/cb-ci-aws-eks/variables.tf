@@ -45,3 +45,9 @@ variable "tags" {
   default = {}
   type    = map(string)
 }
+
+variable "s3_bucket_region_dr" {
+  description = "AWS Region for the S3 bucket used for DR scenarios."
+  type        = string
+  default     = "us-east-2"
+}

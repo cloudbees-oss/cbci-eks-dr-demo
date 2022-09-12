@@ -56,6 +56,12 @@ variable "cidr_block" {
 #   type = set(string)
 # }
 
-variable "bucket_region" {
+variable "s3_bucket_region_dr" {
+  description = "AWS Region for the S3 bucket used for DR scenarios."
+  type        = string
+  default     = "us-east-2"
+}
+
+variable "s3_bucket_name" {
   type = string
 }

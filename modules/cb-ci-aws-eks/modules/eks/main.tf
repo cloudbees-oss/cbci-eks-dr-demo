@@ -106,15 +106,16 @@ module "eks_blueprints_kubernetes_addons" {
   enable_metrics_server               = true
   enable_cluster_autoscaler           = true
   enable_aws_cloudwatch_metrics       = true
-  enable_velero                       = true
-  values = [templatefile("${path.module}/values/velero.yaml", {
-    bucket_name        = "<YOUR_BUCKET_NAME>",
-    bucket_region      = "<YOUR_BUCKET_REGION>"
-    snapshot_region    = "<YOUR_SNAPSHOT_REGION>"
-    snapshot_altregion = "<YOUR_SNAPSHOT_REGION>"
-    cluster_name       = local.cluster_name
-    velero_az_override = "<VELERO_AWS_AZ_OVERRIDE>"
-  })]
+
+  enable_velero           = true
+  velero_backup_s3_bucket = var.s3_bucket_name # It is required for velero iam policy
+  # For Standard Velero: one-region only
+  velero_helm_config = {
+    values = [templatefile("${path.module}/values/velero.yaml", {
+      bucket_name   = var.s3_bucket_name,
+      bucket_region = local.aws_region
+    })]
+  }
   tags = local.tags
 }
 
