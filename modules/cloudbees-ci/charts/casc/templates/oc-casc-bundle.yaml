@@ -8,6 +8,8 @@ data:
   license.yaml: |
 {{ .Files.Get "oc/license.yaml" | indent 4 }}
   jenkins.yaml: |
+{{ .Files.Get "oc/credentials.yaml" | indent 4 }}
+  credentials.yaml: |
 {{ .Files.Get "oc/jenkins.yaml" | indent 4 }}
   location.yaml: |
     unclassified:
