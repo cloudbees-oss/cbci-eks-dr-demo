@@ -15,7 +15,6 @@ fi
 
 kubectl delete pod cjoc-0
 kubectl rollout status sts cjoc
-
 kubectl top node
 
 for x in $(seq 0 $(( MC_COUNT - 1))); do
@@ -33,9 +32,9 @@ for x in $(seq 0 $(( MC_COUNT - 1))); do
         bash "$BIN/wake-and-build.sh" "$mc" easily-resumable
         bash "$BIN/wake-and-build.sh" "$mc" uses-agents
     done
-    if [ $(( x % 5 )) == 0 ]; then
-        setAWSRoleSession
-    fi
+    # if [ $(( x % 5 )) == 0 ]; then
+    #     setAWSRoleSession
+    # fi
 done
 
 kubectl top node

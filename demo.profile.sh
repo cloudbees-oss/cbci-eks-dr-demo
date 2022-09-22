@@ -5,7 +5,7 @@
 #######################
 
 export AWS_PROFILE="example-profile" # https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
-export AWS_ASSUME_ROLE="example-rol" # Optional (Set it to null in case you work with user credentials)
+export AWS_ASSUME_ROLE="example-rol-arn" # Optional (Set it to null in case you work with user credentials)
 export ROUTE_53_DOMAIN="dr.example.com"
 export ROUTE_53_ZONE_ID="Z041787_EXAMPLE"
 export MY_DEMO_ID="ex"
@@ -100,7 +100,7 @@ EOF
     export SUFFIX="$suffix"
     export CLUSTER_NAME="$demo-$suffix"
     ## AWS
-    setAWSRoleSession
+    #setAWSRoleSession
     sleep 1
     account=$(aws sts get-caller-identity | jq -r .Account)
     export ACCOUNT="$account"
@@ -160,6 +160,14 @@ ERROR(){
     local msg="$1"
     timeAndDate=$(date)
     echo "[$timeAndDate] [ERROR] [${0}] [$function_name] $msg"
+    exit 1
+}
+
+WARN(){
+    local function_name="${FUNCNAME[1]}"
+    local msg="$1"
+    timeAndDate=$(date)
+    echo "[$timeAndDate] [WARN] [${0}] [$function_name] $msg"
     exit 1
 }
 

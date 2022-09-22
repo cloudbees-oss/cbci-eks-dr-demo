@@ -23,7 +23,8 @@ deploy_infra() {
         sed "s/@NAME@/$DEMO_NAME/g; s/@REGION@/$AWS_DEFAULT_REGION/g; s/@ACCOUNT@/$ACCOUNT/g; s/@ZONE1@/$ZONE1/g; s/@ZONE2@/$ZONE2/g; s/@SUFFIX@/$SUFFIX/g" < cluster.yaml > "/tmp/$CLUSTER_NAME-cluster.yaml"
         eksctl create cluster -f "/tmp/$CLUSTER_NAME-cluster.yaml"
         #It should match with use-context demo.profile.sh
-        kubectl config rename-context "AWSCLI-Session@${CLUSTER_NAME}.${AWS_DEFAULT_REGION}.eksctl.io" "$CLUSTER_NAME-$AWS_DEFAULT_REGION"
+        current_context=$(kubectl config get-contexts | grep "*" | awk '{print $2}' | xargs)
+        kubectl config rename-context "$current_context" "$CLUSTER_NAME-$AWS_DEFAULT_REGION"
         INFO "Checking Deployed Nodes"
         kubectl get nodes
         setState "build.$AWS_DEFAULT_REGION.infra" true
@@ -48,7 +49,7 @@ deploy_apps(){
         INFO "Checking Deployed Resources"
         kubectl get all -A -o wide
         INFO "Checking Metrics for Nodes"
-        kubectl top nodes
+        kubectl top nodes || WARN "Metrics Server not deployed"
         setState "build.$AWS_DEFAULT_REGION.apps" true
         INFO "New set of apps deployed for $AWS_DEFAULT_REGION" 
     else
@@ -59,6 +60,7 @@ setBackUpScheduller(){
     if [ "$(getState "build.backups")" = false ] && ! velero get schedule cbci-dr &>/dev/null; then
         in-east
         INFO "Prepare Velero Scheduller. As desired you can also manually schedule: TZ=UTC velero backup create --from-schedule cbci-dr"
+        velero delete schedule cbci-dr --confirm || INFO "No previous scheduller"
         velero create schedule cbci-dr --schedule='@every 15m' --ttl 1h --include-namespaces cbci --exclude-resources pods,events,events.events.k8s.io
         INFO 'Watch Velero progress live:'
         INFO 'while :; do kubectl logs -n velero -f deploy/velero || sleep 1; done'
@@ -88,9 +90,9 @@ do
         ZONE1=${AWS_DEFAULT_REGION}b
         ZONE2=${AWS_DEFAULT_REGION}a
     fi
-    setAWSRoleSession
+    #setAWSRoleSession
     deploy_infra
-    setAWSRoleSession
+    #setAWSRoleSession
     deploy_apps
 done
 INFO "-------------------------------"
@@ -109,4 +111,5 @@ INFO "Preparing Jenkins Token for Remote authentication"
 #https://github.com/jenkinsci/configuration-as-code-plugin/issues/1830 hard to make a crumb
 crumb=$(curl -s -u admin:$pass -c /tmp/cookies http://$ROUTE_53_DOMAIN/cjoc/crumbIssuer/api/xml'?xpath=concat(//crumbRequestField,":",//crumb)')
 token=$(curl -s -u admin:$pass -H $crumb -d newTokenName=general -b /tmp/cookies http://$ROUTE_53_DOMAIN/cjoc/user/admin/descriptorByName/jenkins.security.ApiTokenProperty/generateNewToken | jq -r .data.tokenValue)
+kubectl delete secret api-token --namespace cbci || INFO "No api-token secret"
 kubectl create secret generic api-token --from-literal=token="$token" --namespace cbci

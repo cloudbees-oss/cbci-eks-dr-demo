@@ -1,10 +1,10 @@
 repositories:
-- name: ingress-nginx
-  url:  https://kubernetes.github.io/ingress-nginx
-- name: vmware-tanzu
-  url: https://vmware-tanzu.github.io/helm-charts
-- name: bitnami
-  url:  https://charts.bitnami.com/bitnami
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
+  - name: vmware-tanzu
+    url: https://vmware-tanzu.github.io/helm-charts
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
 helmDefaults:
   wait: true
   timeout: 1200
@@ -13,27 +13,34 @@ helmDefaults:
   createNamespace: true
   cleanupOnFail: true
 releases:
-# https://bitnami.com/stack/metrics-server/helm
-- name: metrics-server
-  namespace: kube-system
-  chart: bitnami/metrics-server
-  version: "6.0.0"
-  hooks:
-  - events: ["postsync"]
-    showlogs: true
-    command: "helm"
-    args: ["upgrade", "--namespace", "kube-system", "metrics-server", "bitnami/metrics-server", "--set", "apiService.create=true"]
-# https://artifacthub.io/packages/helm/vmware-tanzu/velero
-- name: velero
-  namespace: velero
-  chart: vmware-tanzu/velero
-  version: "2.24.0"
-  values:
-  - /tmp/velero.yaml
-# https://artifacthub.io/packages/helm/ingress-nginx/ingress-nginx
-- name: ingress
-  namespace: ingress
-  chart: ingress-nginx/ingress-nginx
-  version: "4.0.3"
-  values:
-  - ingress.yaml
+  # https://bitnami.com/stack/metrics-server/helm
+  - name: metrics-server
+    namespace: kube-system
+    chart: bitnami/metrics-server
+    version: "6.0.0"
+    set:
+      - name: apiService.create
+        value: true
+      - name: hostNetwork.enabled
+        value: true
+      - name: metrics.enabled
+        value: true
+    # hooks:
+    # - events: ["postsync"]
+    #   showlogs: true
+    #   command: "helm"
+    #   args: ["upgrade", "--namespace", "kube-system", "metrics-server", "bitnami/metrics-server", "--set", "apiService.create=true"]
+  # https://artifacthub.io/packages/helm/vmware-tanzu/velero
+  - name: velero
+    namespace: velero
+    chart: vmware-tanzu/velero
+    version: "2.24.0"
+    values:
+      - /tmp/velero.yaml
+  # https://artifacthub.io/packages/helm/ingress-nginx/ingress-nginx
+  - name: ingress
+    namespace: ingress
+    chart: ingress-nginx/ingress-nginx
+    version: "4.0.3"
+    values:
+      - ingress.yaml

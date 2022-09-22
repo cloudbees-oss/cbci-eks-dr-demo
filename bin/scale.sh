@@ -17,7 +17,7 @@ do
             # https://issues.jenkins.io/browse/JENKINS-67097 workaround:
             kubectl delete pod --all --force
         fi
-        setAWSRoleSession
+        #setAWSRoleSession
         eksctl scale nodegroup --cluster="$CLUSTER_NAME" --name=ng-linux --nodes=$SCALE --region="$AWS_DEFAULT_REGION"
         until [ "$(kubectl get nodes | grep -c 'Ready')" -eq "$SCALE" ]
         do
