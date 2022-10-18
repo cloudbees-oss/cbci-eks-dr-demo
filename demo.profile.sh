@@ -1,28 +1,5 @@
 #!/usr/bin/bash
 
-#######################
-## Variables
-#######################
-
-export AWS_PROFILE="example-profile" # https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
-export AWS_ASSUME_ROLE="example-rol-arn" # Optional (Set it to null in case you work with user credentials)
-export ROUTE_53_DOMAIN="dr.example.com"
-export ROUTE_53_ZONE_ID="Z041787_EXAMPLE"
-export MY_DEMO_ID="ex"
-## For concreteness, will refer to these as east and west, though in principle could be any two regions:
-export EAST_REGION=us-east-1
-export WEST_REGION=us-west-1
-## Number of ManagedMaster. Start with a small number. Optionally, you can increase it
-export MC_COUNT=5
-## Number of Nodes to Scale | Check max and min from infra/cluster.yaml
-export SCALE=15
-## Debugging
-export DEBUG=${DEBUG:-false}
-
-#######################
-## Functions
-#######################
-
 setState(){
     yq w -i "$ROOT/demo.state.yaml" "$1" "$2"
 }
@@ -57,7 +34,9 @@ getLocals(){
     export INFRA_DIR="$ROOT/infra"
     export HELM_DIR="$ROOT/helm"
     export BIN="$ROOT/bin"
-    ## CloudBees CI version: 2.332.2.6
+    # shellcheck source=/dev/null
+    source "$ROOT/demo.env"
+    ## CloudBees CI version: 2.332.2.6. It is the version the patched was tested against
     export CBCI_VERSION=3.42.6+c9672cd0453e
     if [ ! -f "$ROOT/demo.state.yaml" ]; then
         cat <<EOF > "$ROOT/demo.state.yaml"
@@ -89,8 +68,8 @@ cjoc:
 EOF
         demo="cbci-dr-$MY_DEMO_ID-$RANDOM"
         suffix="$RANDOM"
-        setState demo.name $demo
-        setState demo.suffix $suffix
+        setState demo.name "$demo"
+        setState demo.suffix "$suffix"
         setState cjoc.url "http://$ROUTE_53_DOMAIN/cjoc"
     else
         demo="$(getState demo.name)"
@@ -176,3 +155,57 @@ WARN(){
 #######################
 
 getLocals
+
+#######################
+# Demo DevOps World
+#######################
+
+printTitle(){
+    echo "=========================================="
+    echo "$1"
+    echo "=========================================="
+}
+
+printSubtitle(){
+    echo "$1"
+    echo "------------------------------------------"
+}
+
+demo-watch-east(){
+    _demo-watch "east"
+}
+
+demo-watch-west(){
+    _demo-watch "west"
+}
+
+demo-trigger-backup-east(){
+    in-east
+    bash bin/back-up.sh
+}
+
+demo-failover-to-west(){
+    in-east
+    bash run.sh failover-to-west
+}
+
+_demo-watch(){
+    printTitle "$1"
+    eval "in-$1"
+    printSubtitle "K8s Pods"
+    kubectl get pods -A  
+    printSubtitle "K8s Ingress cbci"
+    kubectl get ing -n cbci || echo "There is not Ingress"
+    printSubtitle "K8s PVCs cbci"
+    kubectl get pvc -n cbci || echo "There is not PVC"
+    printSubtitle "Velero Backups"
+    kubectl get backups
+}
+
+_demo-clean-up(){
+    bash run.sh "d"
+    in-east
+    kubectl delete --all pods --grace-period=0 --force --namespace cbci; kubectl delete pvc --all; kubectl delete ns cbci
+    in-west
+    kubectl delete --all pods --grace-period=0 --force --namespace cbci; kubectl delete pvc --all; kubectl delete ns cbci
+}

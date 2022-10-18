@@ -109,7 +109,7 @@ do
 done
 INFO "Preparing Jenkins Token for Remote authentication"
 #https://github.com/jenkinsci/configuration-as-code-plugin/issues/1830 hard to make a crumb
-crumb=$(curl -s -u admin:$pass -c /tmp/cookies http://$ROUTE_53_DOMAIN/cjoc/crumbIssuer/api/xml'?xpath=concat(//crumbRequestField,":",//crumb)')
-token=$(curl -s -u admin:$pass -H $crumb -d newTokenName=general -b /tmp/cookies http://$ROUTE_53_DOMAIN/cjoc/user/admin/descriptorByName/jenkins.security.ApiTokenProperty/generateNewToken | jq -r .data.tokenValue)
+crumb=$(curl -s -u admin:"$pass" -c /tmp/cookies "http://$ROUTE_53_DOMAIN/cjoc/crumbIssuer/api/xml'?xpath=concat(//crumbRequestField,":",//crumb)'")
+token=$(curl -s -u admin:"$pass" -H "$crumb" -d newTokenName=general -b /tmp/cookies "http://$ROUTE_53_DOMAIN/cjoc/user/admin/descriptorByName/jenkins.security.ApiTokenProperty/generateNewToken" | jq -r .data.tokenValue)
 kubectl delete secret api-token --namespace cbci || INFO "No api-token secret"
 kubectl create secret generic api-token --from-literal=token="$token" --namespace cbci

@@ -30,13 +30,13 @@ destroy_apps_region(){
     INFO "Apps destroyed for ${AWS_DEFAULT_REGION}"
 }
 destroy_apps(){
-    in-east && destroy_apps_region || INFO "Could not use the east kubernetes context"
-    in-west && destroy_apps_region || INFO "Could not use the east kubernetes context"
+    (in-east && destroy_apps_region) || INFO "Could not use the east kubernetes context"
+    (in-west && destroy_apps_region) || INFO "Could not use the west kubernetes context"
 }
 destroy_infra(){
     for region in $EAST_REGION $WEST_REGION
     do
-        setAWSRoleSession
+        #setAWSRoleSession
         if eksctl get cluster --region "$region" --name "$CLUSTER_NAME" 2> /dev/null; then
             eksctl delete cluster --region "$region" --name "$CLUSTER_NAME"
         else
@@ -77,7 +77,7 @@ destroy_infra(){
 destroy_tmp_artifact(){
     cd "$ROOT"
     rm -rf /tmp/*.*
-    rm -f demo.state.yaml
+    ##rm -f demo.state.yaml
     INFO "Demo project artifacts and state deleted"
 }
 
@@ -86,6 +86,6 @@ destroy_tmp_artifact(){
 #######################
 
 destroy_snaphots
-#destroy_apps
+destroy_apps
 destroy_infra
 destroy_tmp_artifact

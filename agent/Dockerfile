@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 SHELL ["/bin/bash", "-c"]
 
 LABEL   maintainer="Carlos Rodriguez Lopez <crodriguezlopez@cloudbees.com>" \
-        updated_at=2022-04-25
+    updated_at=2022-09-28
 
 # Tooling
 WORKDIR /root
@@ -22,17 +22,18 @@ ENV PATH="${PATH}:/asdf/.asdf/shims:/asdf/.asdf/bin" \
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends git \ 
-        unzip \ 
-        gpg \
-        gpg-agent \
-        parallel \ 
-        vim \
-        wget \
-        less \ 
-        ca-certificates \
-        openssh-client \
-        wget \
-        curl && \
+    unzip \
+    # No gpg, https://stackoverflow.com/a/61692849 
+    gnupg \
+    gpg-agent \
+    parallel \ 
+    vim \
+    wget \
+    less \
+    ca-certificates \
+    openssh-client \
+    wget \
+    curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

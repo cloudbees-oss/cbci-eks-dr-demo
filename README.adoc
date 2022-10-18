@@ -233,19 +233,19 @@ The demonstration agent contains all the required tools and configuration for th
 The script `agent/run.sh` build and run the agent for you.   
 
 * The container will be binding the source code of the demo in `/root/demo-scm` to be able to run the commands listed under _Operation script reference_ section. On the other hand, it would be using the `$HOME/.aws` configuration from the Docker host.
-* Additionally, a couple of docker volumens will be attached, one for saving the kubectl config configuration (`v_kube`) and another with all temporal files created during the demo execution (`v_tmp`).
+* Additionally, a couple of docker volumes will be attached, one for saving the kubectl config configuration (`v_kube`) and another with all temporal files created during the demo execution (`v_tmp`).
 
 === Demo Configuration 
 
-The configuration of the demo is centralized in the file `demo.profile.sh` 
+The configuration of the demo is centralized in the file `demo.env`.
 
-Configure your own AWS environment by updating the required parameters `AWS_PROFILE`, `ROUTE_53_DOMAIN`, `ROUTE_53_ZONE_ID` in the `demo.profile.sh` file. 
+Make a copy of `demo.env.example` and rename it to `demo.env`. Then, configure your own AWS environment by updating the required parameters `AWS_PROFILE`, `ROUTE_53_DOMAIN`, `ROUTE_53_ZONE_ID` in the `demo.env` file. 
 
 * `AWS_PROFILE` requires to be included into `$HOME/.aws/config`
 * `ROUTE_53_ZONE_ID` requires an existing Hosted Zone. 
-* `ROUTE_53_DOMAIN` could be a new or exiting domain but it required to be managed by `ROUTE_53_ZONE_ID` (above)
+* `ROUTE_53_DOMAIN` could be a new or existing domain but it is required to be managed by `ROUTE_53_ZONE_ID` (above)
 
-IMPORTANT: If you want to run any command outside provided scripts, run first `source /root/demo-scm/demo.profile.sh` to load the environments. Note that `getLocals` load parametres required by the demo scripts.
+IMPORTANT: If you want to run any command outside provided scripts, run first `source /root/demo-scm/demo.profile.sh` to load the environments. Note that `getLocals` load parameters are required by the demo scripts.
 
 === Demo State 
 
@@ -253,7 +253,7 @@ The execution commands (mainly `setup.sh` and `teardown.sh`) depends on the `dem
 
 === Assume Role Token Expiration (optional)
 
-For those organization which uses link:https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html[assume roles] credentials for AWS, like CloudBees, the function `setAWSRoleSession` refresh the token when sourcing  `demo.profile.sh`. This fuction is also called during the most time-consuming processes to avoid the AWS rol token expiration.
+For those organization that uses link:https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html[assume roles] credentials for AWS, like CloudBees, the function `setAWSRoleSession` refresh the token when sourcing  `demo.profile.sh`. This fuction is also called during the most time-consuming processes to avoid the AWS rol token expiration.
 
 It is managed by the variable `AWS_ASSUME_ROLE`. Set it to null in case you work with user credentials instead of rol crendentials.
 
@@ -264,7 +264,7 @@ All the demo commands are orchestrated by the parent script `run.sh` to centrali
 [source,bash]
 ----
 $> bash run.sh
-Select one of the folloing option and press [ENTER]:
+Select one of the following option and press [ENTER]:
 
 build [B]
 reload-cbci [L]
@@ -275,7 +275,7 @@ destroy [D]
 
 === Building [B]
 
-The option **B** will build up the Demo Environment. 
+Option **B** will build up the Demo Environment. 
 
 A random environment identifier is generated and saved in `demo.state.yaml`, to ensure all resource names are unique. The name is also composed by `MY_DEMO_ID` just to help us to quickly identify who was running the demo without using tags ;)
 
@@ -294,12 +294,12 @@ The values for authentication are saved in `demo.state.yaml` too.
 
 === Scale [B] (Optional)
 
-The nodegroup `ng-linux` will be scaled in both clusters (East and West) according to the value of the variable `SCALE` in `demo.profile.sh`.
+The nodegroup `ng-linux` will be scaled in both clusters (East and West) according to the value of the variable `SCALE` in `demo.env`.
 
 [source,bash]
 ----
 $> bash run.sh
-Select one of the folloing option and press [ENTER]:
+Select one of the following option and press [ENTER]:
 ...
 scale [S]
 ...
@@ -308,18 +308,16 @@ s
 
 === Load [L]
 
-In case the number of nodes were scaled up/down, the number of Managed Master can be adjusted accordingly by the variable `MC_COUNT` in `demo.profile.sh`.
+In case the number of nodes was scaled up/down, the number of Managed Master can be adjusted accordingly by the variable `MC_COUNT` in `demo.env`.
 
 Once the building/scaling of the demo finishes `OK`, move the context to the Main Region (`east`) and hit `run` with option **L** to ensure all configured managed controllers are awake and trigger builds for each of their jobs. 
 
 [source,bash]
 ----
-$> source demo.profile.sh
-...
 $> in-east
 ...
 $> bash run.sh
-Select one of the folloing option and press [ENTER]:
+Select one of the following option and press [ENTER]:
 ...
 reload-cbci [L]
 ...
@@ -328,28 +326,26 @@ l
 
 === Check backup status
 
-The following command is issued to verify if the status of the velero backups:
+The following command is issued to verify the status of the velero backups:
 
 ----
 $> velero get backups
 ----
 
-NOTE: Backups must be present on both regions.
+NOTE: Backups must be present in both regions.
 
 The backups are setup to TTL of 1 hour, then they link:https://velero.io/docs/v1.8/how-velero-works/#set-a-backup-to-expire[expire].
 
 === Restore [R]
 
-Once some of the backups have been completed after fininshing with the Load of the Main Region, move the context to the Main Region (`west`) and issue command `run` with the option **R**.
+Once some of the backups have been completed after finishing with the Load of the Main Region, move the context to the Main Region (`west`) and issue command `run` with the option **R**.
 
 [source,bash]
 ----
-$> source demo.profile.sh
-...
 $> in-west
 ...
 $> bash run.sh
-Select one of the folloing option and press [ENTER]:
+Select one of the following option and press [ENTER]:
 ...
 restore [R]
 ...
@@ -378,7 +374,8 @@ d
 
 Script to configure the shell (`source xxx.sh`):
 
-* `demo.profile.sh`: Load basic environment variables and functions.
+* `demo.profile.sh`: Load basic environment functions.
+* `demo.env`: Load basic environment variables (it is load by `demo.profile.sh`)
 
 State file
 
@@ -424,4 +421,4 @@ helm.go:81: [debug] the server has asked for the client to provide credentials
 Kubernetes cluster unreachable
 ----
 
-Please run `source demo demo.profile.sh` the token as expired or is not available for that session.
+Please run `source demo.profile.sh` the token has expired or is not available for that session.

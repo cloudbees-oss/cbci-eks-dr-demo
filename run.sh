@@ -5,6 +5,7 @@ source /root/demo-scm/demo.profile.sh
 setDebugLevel
 
 SECONDS=0
+OPT=${1:-}
 
 #######################
 ## Functions
@@ -54,7 +55,8 @@ destroy(){
 ## Init
 #######################
 
-cat <<EOF
+if [ -z "$OPT" ]; then 
+    cat <<EOF
 Select one of the following option and press [ENTER]:
 
     [B] Build
@@ -63,7 +65,10 @@ Select one of the following option and press [ENTER]:
     [R] Restore
     [D] Destroy
 EOF
-read -r opt
+    read -r opt 
+else 
+    opt="$OPT"
+fi
 upperOpt=$(echo "$opt" | tr '[:lower:]' '[:upper:]')
 if [ ! -d "logs" ]; then
     mkdir "logs"
@@ -88,4 +93,4 @@ case $upperOpt in
         ;;
 esac
 duration=$SECONDS
-INFO "$((duration / 60)) minutes and $((duration % 60)) seconds elapsed."
+INFO "$((duration / 60)) minutes and $((duration % 60)) seconds elapsed"

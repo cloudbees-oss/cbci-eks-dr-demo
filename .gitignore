@@ -1,4 +1,5 @@
 demo.state.yaml
+*.env
 logs
 kubeconfig_*
 .bash_history

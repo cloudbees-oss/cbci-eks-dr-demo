@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euxo pipefail
 
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null && pwd)" || return
 
